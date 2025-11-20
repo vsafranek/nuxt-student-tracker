@@ -7,21 +7,31 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "db:push": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.83.0",
+    "@nuxtjs/tailwindcss": "^6.14.0",
+    "@supabase/supabase-js": "^2.84.0",
+    "@tailwindcss/vite": "^4.1.17",
     "drizzle-orm": "^0.44.7",
     "nuxt": "^4.2.1",
     "openai": "^6.9.1",
     "pg": "^8.16.3",
     "qrcode": "^1.5.4",
+    "tailwindcss": "^4.1.17",
     "vue": "^3.5.24",
     "vue-router": "^4.6.3"
   },
   "devDependencies": {
+    "@nuxtjs/supabase": "^2.0.1",
+    "@tailwindcss/postcss": "^4.1.17",
     "@types/pg": "^8.15.6",
-    "drizzle-kit": "^0.31.7",
-    "tailwindcss": "^4.1.17"
+    "@types/qrcode": "^1.5.6",
+    "cross-env": "^10.1.0",
+    "dotenv": "^17.2.3",
+    "drizzle-kit": "^0.31.7"
   }
 }
