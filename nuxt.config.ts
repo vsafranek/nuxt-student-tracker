@@ -20,6 +20,15 @@ export default defineNuxtConfig({
       login: '/',
       callback: '/auth/callback',
       exclude: ['/join', '/join/*'],
+    },
+    // Zajistit, že session je trvalá
+    clientOptions: {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined
+      }
     }
   },
   nitro: {

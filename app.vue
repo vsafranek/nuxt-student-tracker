@@ -29,10 +29,32 @@ useHead({
   ]
 })
 
-// Sledování auth stavu
+// Sledování auth stavu a automatické obnovování session
 onMounted(() => {
-  supabase.auth.onAuthStateChange((event, session) => {
-    console.log('Auth state changed:', event, session)
+  // Zkontrolovat a obnovit session při startu
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session) {
+      console.log('Session found on app mount:', session.user.email)
+    }
   })
+  
+  // Poslouchat změny auth stavu
+  supabase.auth.onAuthStateChange((event, session) => {
+    console.log('Auth state changed:', event, session?.user?.email)
+    
+    // Automaticky obnovit token pokud je potřeba
+    if (session && event === 'TOKEN_REFRESHED') {
+      console.log('Token refreshed successfully')
+    }
+  })
+  
+  // Supabase automaticky obnovuje tokeny, takže interval není nutný
+  // Pokud by bylo potřeba explicitní obnovování, můžeme použít:
+  // setInterval(async () => {
+  //   const { data: { session } } = await supabase.auth.getSession()
+  //   if (session) {
+  //     await supabase.auth.refreshSession()
+  //   }
+  // }, 55 * 60 * 1000) // 55 minut
 })
 </script>

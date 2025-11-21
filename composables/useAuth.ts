@@ -26,13 +26,21 @@ export const useAuth = () => {
 
   // Přihlášení přes Google
   const signInWithGoogle = async () => {
+    // Zkontrolovat, zda už není uživatel přihlášen
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (session?.user) {
+      // Uživatel je už přihlášen, neprovádět OAuth flow
+      return
+    }
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: {
           access_type: 'offline',
-          prompt: 'consent',
+          // Odstraněno prompt: 'consent' - umožní automatické přihlášení pokud už je uživatel přihlášen v Google
         }
       }
     })

@@ -465,22 +465,62 @@ definePageMeta({
 })
 
 const supabase = useSupabaseClient()
+const router = useRouter()
 const showLoginModal = ref(false)
 const isLoading = ref(false)
 const error = ref('')
+
+// Zkontrolovat session při načtení stránky
+onMounted(async () => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (session?.user) {
+      // Uživatel je přihlášen, přesměrovat na dashboard
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', session.user.id)
+        .single()
+      
+      const role = userData?.role || 'teacher'
+      await router.push(role === 'teacher' ? '/teacher/dashboard' : '/student/groups')
+    }
+  } catch (error) {
+    console.error('Error checking session:', error)
+  }
+})
 
 const handleGoogleSignIn = async () => {
   error.value = ''
   isLoading.value = true
   
   try {
+    // Zkontrolovat, zda už není uživatel přihlášen
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (session?.user) {
+      // Uživatel je přihlášen, přesměrovat na dashboard
+      isLoading.value = false
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', session.user.id)
+        .single()
+      
+      const role = userData?.role || 'teacher'
+      await navigateTo(role === 'teacher' ? '/teacher/dashboard' : '/student/groups')
+      return
+    }
+    
+    // Přihlášení přes Google (bez prompt: 'consent' pro automatické přihlášení)
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: {
           access_type: 'offline',
-          prompt: 'consent',
+          // Odstraněno prompt: 'consent' - umožní automatické přihlášení pokud už je uživatel přihlášen v Google
         }
       }
     })
