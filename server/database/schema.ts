@@ -46,3 +46,11 @@ export const messages = pgTable('messages', {
   metadata: jsonb('metadata'), // pro uložení AI analýzy
   createdAt: timestamp('created_at').defaultNow()
 })
+
+export const groupMembers = pgTable('group_members', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  deviceId: text('device_id').notNull(), // Unique device identifier from localStorage
+  groupId: uuid('group_id').references(() => groups.id).notNull(),
+  nickname: text('nickname').notNull(),
+  joinedAt: timestamp('joined_at').defaultNow()
+})
