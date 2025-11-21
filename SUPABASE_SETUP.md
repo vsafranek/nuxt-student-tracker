@@ -19,6 +19,13 @@ DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabas
 
 # OpenAI (if needed)
 OPENAI_API_KEY=your_openai_api_key
+
+# Azure OpenAI Configuration (for chatbot)
+# Get these from your Azure OpenAI resource in Azure Portal
+AZURE_OPENAI_API_BASE=https://your-resource-name.openai.azure.com/
+AZURE_OPENAI_API_KEY=your-azure-openai-api-key
+AZURE_OPENAI_API_VERSION=2024-02-15-preview
+AZURE_OPENAI_DEPLOYMENT=models-gpt-4o
 ```
 
 ### 2. Get Your Supabase Credentials

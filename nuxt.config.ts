@@ -38,6 +38,11 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     openaiApiKey: process.env.OPENAI_API_KEY,
+    // Azure OpenAI configuration
+    azureOpenAiApiBase: process.env.AZURE_OPENAI_API_BASE,
+    azureOpenAiApiKey: process.env.AZURE_OPENAI_API_KEY,
+    azureOpenAiApiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-02-15-preview',
+    azureOpenAiDeployment: process.env.AZURE_OPENAI_DEPLOYMENT || 'models-gpt-4o',
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseKey: process.env.SUPABASE_SERVICE_KEY,
     databaseUrl: process.env.DATABASE_URL,
