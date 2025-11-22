@@ -264,8 +264,8 @@
                     v-model="newGroup.assignmentMode"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                   >
-                    <option value="uniform">Stejné zadání pro všechny studenty</option>
-                    <option value="variant">Varianta se stejnou obtížností (jiná čísla pro každého)</option>
+                    <option value="uniform">Stejné zadání pro všechny</option>
+                    <option value="variant">Varianty se stejnou obtížností</option>
                   </select>
                   <p class="text-xs text-gray-500 mt-2">
                     Režim „stejné zadání“ uloží jednu variantu pro celou skupinu. Varianta generuje obdobné zadání se změněnými hodnotami pro každého studenta.
@@ -398,8 +398,8 @@
                     v-model="editGroupData.assignmentMode"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                   >
-                    <option value="uniform">Stejné zadání pro všechny studenty</option>
-                    <option value="variant">Varianta se stejnou obtížností (jiná čísla pro každého)</option>
+                    <option value="uniform">Stejné zadání pro všechny</option>
+                    <option value="variant">Varianty se stejnou obtížností</option>
                   </select>
                   <p class="text-xs text-gray-500 mt-2">
                     Při přepnutí na varianty se případné sdílené zadání vyčistí a studenti získají vlastní verzi.
