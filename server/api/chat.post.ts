@@ -1,8 +1,8 @@
-import { AzureOpenAI } from 'openai'
+import { getAzureClient } from '~/server/utils/azureClient'
+import { extractMessageContent } from '~/server/utils/openaiContent'
 
 export default defineEventHandler(async (event) => {
   try {
-    const config = useRuntimeConfig()
     const body = await readBody(event)
     
     const { messages, userId, groupId } = body
@@ -14,43 +14,24 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Validate Azure OpenAI configuration
-    if (!config.azureOpenAiApiBase || !config.azureOpenAiApiKey) {
-      console.error('Azure OpenAI configuration missing:', {
-        hasApiBase: !!config.azureOpenAiApiBase,
-        hasApiKey: !!config.azureOpenAiApiKey
-      })
-      throw createError({
-        statusCode: 500,
-        message: 'Azure OpenAI není nakonfigurováno. Prosím přidejte do .env souboru: AZURE_OPENAI_API_BASE, AZURE_OPENAI_API_KEY'
-      })
-    }
-    
-    // Initialize Azure OpenAI client
-    // For Azure OpenAI, baseURL should point to your Azure endpoint
-    const client = new AzureOpenAI({
-      baseURL: config.azureOpenAiApiBase,
-      apiKey: config.azureOpenAiApiKey,
-      apiVersion: config.azureOpenAiApiVersion || '2024-02-15-preview'
-    })
-    
-    // Call Azure OpenAI API
-    // Use deployment name as the model parameter
-    const deployment = config.azureOpenAiDeployment || 'models-gpt-4o'
+    // Initialize Azure OpenAI client once using shared helper
+    const { client, deployment } = getAzureClient()
+
     const completion = await client.chat.completions.create({
       model: deployment,
       messages: messages.map((msg: any) => ({
         role: msg.role,
         content: msg.content
       })),
-      temperature: 0.7,
       max_tokens: 1000,
       stream: false
     })
     
     const assistantMessage = completion.choices[0]?.message
+    console.log("MESSAGE ",assistantMessage)
+    const assistantContent = extractMessageContent(assistantMessage?.content).trim()
     
-    if (!assistantMessage) {
+    if (!assistantContent) {
       throw createError({
         statusCode: 500,
         message: 'No response from AI'
@@ -61,7 +42,7 @@ export default defineEventHandler(async (event) => {
       success: true,
       message: {
         role: assistantMessage.role,
-        content: assistantMessage.content
+        content: assistantContent
       },
       usage: completion.usage
     }

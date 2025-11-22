@@ -27,7 +27,7 @@
     </div>
 
     <!-- Messages Area -->
-    <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+    <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-6 bg-gray-50">
       <!-- Empty State -->
       <div v-if="displayMessages.length === 0" class="flex flex-col items-center justify-center h-full text-gray-500">
         <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
@@ -46,16 +46,18 @@
           v-for="(message, index) in displayMessages"
           :key="`${message.timestamp?.getTime() || index}-${message.content.slice(0, 20)}`"
           :class="[
-            'flex',
-            message.role === 'user' ? 'justify-end' : 'justify-start'
+            'flex flex-col',
+            message.role === 'user' ? 'items-end' : 'items-start'
           ]"
         >
           <div
             :class="[
-              'max-w-[80%] rounded-2xl px-4 py-3 shadow-sm',
+              'max-w-[80%] rounded-2xl px-4 py-3 shadow-sm relative',
               message.role === 'user'
                 ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-900 border border-gray-200'
+                : 'bg-white text-gray-900 border border-gray-200',
+              // Green border for relevant messages
+              message.isRelevant && message.role === 'user' && 'ring-2 ring-green-500 ring-offset-1 border-green-500'
             ]"
           >
             <div class="whitespace-pre-wrap break-words">{{ message.content }}</div>
@@ -68,6 +70,26 @@
             >
               {{ formatTime(message.timestamp) }}
             </div>
+          </div>
+          <!-- Warning indicator for non-relevant messages -->
+          <div
+            v-if="message.role === 'user' && message.isRelevant === false"
+            class="mt-1 flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Tato zpráva nesouvisí s cíli</span>
+          </div>
+          <!-- Success indicator for relevant messages -->
+          <div
+            v-if="message.role === 'user' && message.isRelevant && message.goalIndex !== null"
+            class="mt-1 flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Pokrok k cíli</span>
           </div>
         </div>
 
@@ -129,31 +151,179 @@
 </template>
 
 <script setup lang="ts">
+interface Goal {
+  id: string
+  title: string
+  type: 'boolean' | 'percentage'
+  targetCount: number
+  progress: number
+  completed: boolean
+  percentage: number
+}
+
 interface Props {
   userId?: string
   groupId?: string
   systemPrompt?: string
+  goals?: Goal[]
+  groupDescription?: string
+  groupName?: string
+  studentName?: string
   height?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  height: '600px'
+  height: '600px',
+  goals: () => []
 })
 
-const { messages, isLoading, error, sendMessage, clearMessages } = useChat({
+const { messages, isLoading, error, sendMessage, clearMessages, addAssistantMessage } = useChat({
   userId: props.userId,
   groupId: props.groupId,
-  systemPrompt: props.systemPrompt
+  systemPrompt: props.systemPrompt,
+  goals: props.goals || [],
+  groupDescription: props.groupDescription || ''
 })
 
 const inputMessage = ref('')
 const inputRef = ref<HTMLTextAreaElement | null>(null)
 const messagesContainer = ref<HTMLDivElement | null>(null)
+const hasShownWelcome = ref(false)
+const isGeneratingWelcome = ref(false)
+let welcomeTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Filter out system messages for display
 const displayMessages = computed(() => {
   return messages.value.filter(msg => msg.role !== 'system')
 })
+
+// Generate welcome message with AI-generated task assignment
+const generateWelcomeMessage = async (): Promise<string> => {
+  const studentName = props.studentName || 'studente'
+  const groupName = props.groupName || 'skupině'
+  
+  let welcomeText = ''
+  
+  // Try to generate task assignment using AI if we have group description
+  if (props.groupDescription && props.groupDescription.trim()) {
+    try {
+      console.log('Generating assignment with:', {
+        groupDescription: props.groupDescription,
+        goalsCount: props.goals?.length || 0,
+        studentName: props.studentName,
+        groupName: props.groupName
+      })
+      
+      const response = await $fetch<{
+        success: boolean
+        assignment: string
+      }>('/api/chat/generate-assignment', {
+        method: 'POST',
+        body: {
+          groupDescription: props.groupDescription,
+          goals: props.goals || [],
+          studentName: props.studentName,
+          groupName: props.groupName
+        }
+      })
+      
+      console.log('Assignment response:', response)
+      
+      if (response.success && response.assignment && response.assignment.trim()) {
+        welcomeText += `${response.assignment}\n\n`
+      } else {
+        console.warn('Assignment response missing or empty, using fallback')
+        throw new Error('No assignment in response')
+      }
+    } catch (error: any) {
+      console.error('Error generating assignment:', error)
+      // Fallback if AI generation fails - create basic assignment based on goals
+      if (props.goals && props.goals.length > 0) {
+        welcomeText += 'Pracujte na plnění následujících cílů. Pomohu vám s jejich splněním.\n\n'
+      } else {
+        welcomeText += 'Pracujte na úkolech ve skupině. Pomohu vám s jejich splněním.\n\n'
+      }
+    }
+  } else {
+    // If no group description, provide basic assignment
+    console.log('No group description, using basic assignment')
+    if (props.goals && props.goals.length > 0) {
+      welcomeText += 'Pracujte na plnění následujících cílů. Pomohu vám s jejich splněním.\n\n'
+    } else {
+      welcomeText += 'Pracujte na úkolech ve skupině. Pomohu vám s jejich splněním.\n\n'
+    }
+  }
+  
+  // Add goals if available
+  if (props.goals && props.goals.length > 0) {
+    welcomeText += '**Vaše cíle:**\n\n'
+    
+    props.goals.forEach((goal, index) => {
+      welcomeText += `${index + 1}. ${goal.title}\n`
+      
+      if (goal.type === 'boolean') {
+        welcomeText += `   Status: ${goal.completed ? '✅ Splněno' : '❌ Nesplněno'}\n`
+      } else if (goal.type === 'percentage') {
+        welcomeText += `   Průběh: ${goal.percentage}% (${goal.progress}/${goal.targetCount})\n`
+      }
+      
+      welcomeText += '\n'
+    })
+    
+    welcomeText += '\n'
+  }
+  
+  welcomeText += 'Můžete se mě zeptat na cokoliv souvisejícího s úkolem nebo cíli. Pomohu vám s jejich splněním. Jak mohu pomoci?'
+  
+  return welcomeText
+}
+
+const showWelcome = async () => {
+  if (hasShownWelcome.value || displayMessages.value.length > 0 || isGeneratingWelcome.value) {
+    return
+  }
+
+  isGeneratingWelcome.value = true
+
+  try {
+    console.log('Generating welcome message with props:', {
+      groupDescription: props.groupDescription,
+      goalsCount: props.goals?.length || 0,
+      studentName: props.studentName,
+      groupName: props.groupName
+    })
+
+    const welcomeMessage = await generateWelcomeMessage()
+    if (welcomeMessage && welcomeMessage.trim()) {
+      addAssistantMessage(welcomeMessage)
+      hasShownWelcome.value = true
+      scrollToBottom()
+    }
+  } catch (error) {
+    console.error('Error generating welcome message:', error)
+    const basicWelcome = `Ahoj ${props.studentName || 'studente'}! 👋\n\nVítejte ve skupině "${props.groupName || 'skupině'}". Jsem AI asistent a jsem zde, abych vám pomohl s vašimi úkoly.\n\n**Vaše zadání:**\nPracujte na úkolech ve skupině. Pomohu vám s jejich splněním.\n\nMůžete se mě zeptat na cokoliv. Jak mohu pomoci?`
+    addAssistantMessage(basicWelcome)
+    hasShownWelcome.value = true
+    scrollToBottom()
+  } finally {
+    isGeneratingWelcome.value = false
+  }
+}
+
+const scheduleWelcome = () => {
+  if (hasShownWelcome.value || displayMessages.value.length > 0 || isGeneratingWelcome.value) {
+    return
+  }
+
+  if (welcomeTimeout) {
+    return
+  }
+
+  welcomeTimeout = setTimeout(async () => {
+    welcomeTimeout = null
+    await showWelcome()
+  }, 300)
+}
 
 const handleSubmit = async () => {
   if (!inputMessage.value.trim() || isLoading.value) {
@@ -211,10 +381,25 @@ watch(() => messages.value.length, () => {
   scrollToBottom()
 })
 
-// Focus input on mount
+// Show welcome message when props are ready
+watch(
+  [() => props.goals, () => props.groupDescription, () => props.groupName, () => props.studentName],
+  () => {
+    scheduleWelcome()
+  },
+  { deep: true, immediate: true }
+)
+
 onMounted(() => {
   if (inputRef.value) {
     inputRef.value.focus()
+  }
+})
+
+onBeforeUnmount(() => {
+  if (welcomeTimeout) {
+    clearTimeout(welcomeTimeout)
+    welcomeTimeout = null
   }
 })
 </script>

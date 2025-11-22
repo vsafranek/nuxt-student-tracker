@@ -75,6 +75,56 @@ export default defineEventHandler(async (event) => {
       })
     }
     
+    // Initialize progress for all goals in the group
+    // Get all goals for this group
+    const { data: goals, error: goalsError } = await supabase
+      .from('goals')
+      .select('id')
+      .eq('group_id', groupId)
+    
+    if (goalsError) {
+      console.error('Error fetching goals for progress initialization:', goalsError)
+      // Don't fail the join if goals fetch fails, just log it
+    } else if (goals && goals.length > 0) {
+      // Create progress entries for each goal
+      // Check if progress already exists, if not create it
+      // For students without user accounts, we'll track progress per group_member
+      // For now, we'll check if progress exists and create if it doesn't
+      
+      for (const goal of goals) {
+        // Check if progress already exists for this goal
+        const { data: existingProgress } = await supabase
+          .from('student_progress')
+          .select('id')
+          .eq('group_id', groupId)
+          .eq('goal_id', goal.id)
+          .is('student_id', null)
+          .limit(1)
+          .single()
+        
+        // Only create if it doesn't exist
+        if (!existingProgress) {
+          const { error: progressError } = await supabase
+            .from('student_progress')
+            .insert({
+              group_id: groupId,
+              goal_id: goal.id,
+              student_id: null, // null for students without user accounts
+              progress: 0,
+              completed: false,
+              needs_help: false
+            })
+          
+          if (progressError) {
+            console.error(`Error creating progress for goal ${goal.id}:`, progressError)
+            // Don't fail the join if progress creation fails, just log it
+          }
+        }
+      }
+      
+      console.log(`Checked/initialized progress for ${goals.length} goals for new member`)
+    }
+    
     return {
       success: true,
       message: 'Úspěšně jste se připojili ke skupině',
