@@ -47,6 +47,8 @@ export default defineEventHandler(async (event) => {
     })
     
     // Uložení skupiny do databáze (use snake_case for column names)
+    const assignmentMode = body.assignmentMode === 'variant' ? 'variant' : 'uniform'
+
     const { data: group, error: insertError } = await supabase
       .from('groups')
       .insert({
@@ -55,6 +57,7 @@ export default defineEventHandler(async (event) => {
         description: body.description,
         qr_code: qrCodeSvg,
         teacher_id: teacherId,
+        assignment_mode: assignmentMode
       } as any)
       .select()
       .single()
@@ -83,6 +86,7 @@ export default defineEventHandler(async (event) => {
         name: groupData.name,
         description: groupData.description,
         qrCode: groupData.qr_code, // Map snake_case to camelCase
+        assignmentMode: groupData.assignment_mode || 'uniform',
         createdAt: groupData.created_at,
         studentCount: 0,
         averageProgress: 0,

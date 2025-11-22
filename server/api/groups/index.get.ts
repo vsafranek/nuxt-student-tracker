@@ -84,6 +84,7 @@ export default defineEventHandler(async (event) => {
           name: group.name,
           description: group.description,
           qrCode: group.qr_code, // Map snake_case to camelCase
+          assignmentMode: group.assignment_mode || 'uniform',
           createdAt: group.created_at,
           studentCount: studentCount || 0,
           averageProgress,

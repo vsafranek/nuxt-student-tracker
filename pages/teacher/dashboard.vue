@@ -116,9 +116,19 @@
                   <h3 class="text-lg font-semibold text-gray-900 mb-1">{{ group.name }}</h3>
                   <p class="text-sm text-gray-600 line-clamp-2">{{ group.description }}</p>
                 </div>
-                <span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full flex-shrink-0">
-                  Aktivní
-                </span>
+                <div class="flex flex-col items-end gap-1">
+                  <span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full flex-shrink-0">
+                    Aktivní
+                  </span>
+                  <span
+                    class="px-2 py-1 text-xs font-medium rounded-full flex-shrink-0"
+                    :class="group.assignmentMode === 'variant'
+                      ? 'bg-purple-100 text-purple-800'
+                      : 'bg-blue-100 text-blue-800'"
+                  >
+                    {{ group.assignmentMode === 'variant' ? 'Variantní zadání' : 'Stejné zadání' }}
+                  </span>
+                </div>
               </div>
   
               <div class="space-y-3">
@@ -245,6 +255,22 @@
                     required
                   ></textarea>
                 </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Typ zadávání úkolů
+                  </label>
+                  <select
+                    v-model="newGroup.assignmentMode"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  >
+                    <option value="uniform">Stejné zadání pro všechny studenty</option>
+                    <option value="variant">Varianta se stejnou obtížností (jiná čísla pro každého)</option>
+                  </select>
+                  <p class="text-xs text-gray-500 mt-2">
+                    Režim „stejné zadání“ uloží jednu variantu pro celou skupinu. Varianta generuje obdobné zadání se změněnými hodnotami pro každého studenta.
+                  </p>
+                </div>
   
                 <div v-if="createError" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
                   {{ createError }}
@@ -364,6 +390,22 @@
                   ></textarea>
                 </div>
 
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Typ zadávání úkolů
+                  </label>
+                  <select
+                    v-model="editGroupData.assignmentMode"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  >
+                    <option value="uniform">Stejné zadání pro všechny studenty</option>
+                    <option value="variant">Varianta se stejnou obtížností (jiná čísla pro každého)</option>
+                  </select>
+                  <p class="text-xs text-gray-500 mt-2">
+                    Při přepnutí na varianty se případné sdílené zadání vyčistí a studenti získají vlastní verzi.
+                  </p>
+                </div>
+
                 <div v-if="createError" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
                   {{ createError }}
                 </div>
@@ -449,6 +491,8 @@
   </template>
   
   <script setup lang="ts">
+  type AssignmentMode = 'uniform' | 'variant'
+
   interface Group {
     id: string
     name: string
@@ -458,6 +502,7 @@
     helpNeeded?: number
     createdAt?: string
     qrCode?: string
+    assignmentMode?: AssignmentMode
   }
 
   definePageMeta({
@@ -484,13 +529,15 @@
   
   const newGroup = ref({
     name: '',
-    description: ''
+    description: '',
+    assignmentMode: 'uniform' as AssignmentMode
   })
   
   const editGroupData = ref({
     id: '',
     name: '',
-    description: ''
+    description: '',
+    assignmentMode: 'uniform' as AssignmentMode
   })
   
   // Computed
@@ -533,7 +580,8 @@
       method: 'POST',
       body: {
         name: newGroup.value.name,
-        description: newGroup.value.description
+        description: newGroup.value.description,
+        assignmentMode: newGroup.value.assignmentMode
         // Remove teacherId - it will be taken from auth token
       }
     })
@@ -543,7 +591,7 @@
       groups.value.unshift(response.group)
       
       // Reset formuláře a zavření modalu
-      newGroup.value = { name: '', description: '' }
+      newGroup.value = { name: '', description: '', assignmentMode: 'uniform' }
       showCreateGroupModal.value = false
     }
   } catch (error: any) {
@@ -570,7 +618,8 @@
     editGroupData.value = {
       id: group.id,
       name: group.name,
-      description: group.description
+      description: group.description,
+      assignmentMode: group.assignmentMode || 'uniform'
     }
     showEditGroupModal.value = true
   }
@@ -584,7 +633,8 @@
         method: 'PUT',
         body: {
           name: editGroupData.value.name,
-          description: editGroupData.value.description
+        description: editGroupData.value.description,
+        assignmentMode: editGroupData.value.assignmentMode
         }
       })
       
@@ -599,7 +649,7 @@
         }
         
         // Reset and close modal
-        editGroupData.value = { id: '', name: '', description: '' }
+        editGroupData.value = { id: '', name: '', description: '', assignmentMode: 'uniform' }
         showEditGroupModal.value = false
       }
     } catch (error: any) {

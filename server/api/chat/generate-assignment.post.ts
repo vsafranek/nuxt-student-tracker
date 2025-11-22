@@ -1,5 +1,8 @@
+import { serverSupabaseClient } from '#supabase/server'
 import { getAzureClient } from '~/server/utils/azureClient'
 import { extractMessageContent } from '~/server/utils/openaiContent'
+
+type AssignmentMode = 'uniform' | 'variant'
 
 interface GoalInput {
   title: string
@@ -11,19 +14,20 @@ const buildFallbackAssignment = ({
   studentName,
   groupName,
   groupDescription,
-  goals
+  goals,
+  assignmentMode = 'uniform'
 }: {
   studentName?: string
   groupName?: string
   groupDescription: string
   goals: GoalInput[]
+  assignmentMode?: AssignmentMode
 }) => {
-  const safeStudent = (studentName && studentName.trim()) || 'studente'
   const safeGroup = (groupName && groupName.trim()) || 'skupině'
   const safeDescription = groupDescription.trim()
 
-  let text = `Ahoj ${safeStudent}! 👋\n`
-  text += `Ve skupině "${safeGroup}" se budeme soustředit na: ${safeDescription}.\n\n`
+  let text = `Ve skupině "${safeGroup}" se zaměříme na: ${safeDescription}.\n\n`
+  text += 'Tvůj úkol:\n'
 
   if (goals.length > 0) {
     text += 'Postupuj krok za krokem podle těchto cílů:\n'
@@ -38,17 +42,37 @@ const buildFallbackAssignment = ({
     text += 'Začni tím, že si rozepíšeš konkrétní kroky, které tě k cíli přiblíží.\n\n'
   }
 
-  text += 'Napiš mi, s čím chceš začít nebo kde potřebuješ pomoct a společně úkol zvládneme.'
+  if (assignmentMode === 'variant') {
+    const sampleNumbers = Array.from({ length: 3 }, () => Math.floor(Math.random() * 40) + 10)
+    text += `Tato varianta používá jiné hodnoty než u spolužáků. Pro kontrolu můžeš pracovat s čísly ${sampleNumbers.join(', ')} a kdykoli je obměnit za podobné.\n\n`
+  } else {
+    text += 'Toto zadání je shodné se zadáním ostatních, abyste byli ve stejné fázi.\n\n'
+  }
+
+  text += 'Napiš mi, kde chceš začít nebo kde potřebuješ pomoct a společně úkol zvládneme.'
   return text
 }
 
 export default defineEventHandler(async (event) => {
   let fallbackAssignment = ''
+  let assignmentModeState: AssignmentMode = 'uniform'
+  let targetGroupId: string | null = null
+  let supabase: any = null
 
   try {
     const body = await readBody(event)
     
-    const { groupDescription, goals, studentName, groupName } = body
+    const {
+      groupDescription,
+      goals,
+      studentName,
+      groupName,
+      assignmentMode,
+      groupId
+    } = body
+    
+    assignmentModeState = assignmentMode === 'variant' ? 'variant' : 'uniform'
+    targetGroupId = typeof groupId === 'string' ? groupId : null
     
     if (!groupDescription || !groupDescription.trim()) {
       throw createError({
@@ -63,8 +87,27 @@ export default defineEventHandler(async (event) => {
       studentName,
       groupName,
       groupDescription,
-      goals: goalsList
+      goals: goalsList,
+      assignmentMode: assignmentModeState
     })
+    
+    supabase = await serverSupabaseClient(event) as any
+    
+    if (assignmentModeState === 'uniform' && targetGroupId) {
+      const { data: groupRecord, error: sharedError } = await supabase
+        .from('groups')
+        .select('shared_assignment')
+        .eq('id', targetGroupId)
+        .single()
+      
+      if (!sharedError && groupRecord?.shared_assignment) {
+        return {
+          success: true,
+          assignment: groupRecord.shared_assignment,
+          shared: true
+        }
+      }
+    }
     
     const { client, deployment } = getAzureClient()
     
@@ -84,6 +127,10 @@ export default defineEventHandler(async (event) => {
     } else {
       goalsText = '\nSkupina nemá zatím definované cíle. Vytvořte zadání na základě popisu skupiny.\n'
     }
+    
+    const modeInstructions = assignmentModeState === 'variant'
+      ? `- Vytvoř variantu se stejnou obtížností jako mají ostatní studenti, ale změň konkrétní číselné hodnoty nebo vstupní data, aby zadání bylo unikátní.\n- Zachovej stejnou strukturu kroků, aby bylo možné úkol vyhodnocovat podle stejných kritérií.`
+      : `- Toto zadání bude sdílené všemi studenty skupiny. Nevytvářej žádné individuální varianty ani volby.`
     
     const systemPrompt = `Jste AI asistent pomáhající studentům s jejich úkoly.
 
@@ -110,6 +157,7 @@ DŮLEŽITÉ:
 - Buďte konkrétní a jasní
 - Nepoužívejte fráze jako "vodítko pro vás" - to je jen pro váš kontext
 - Nepřidávejte vlastní pozdrav ani úvod – aplikace už studenta přivítala. Začněte rovnou zadáním úkolu nebo popisem, co má student udělat.
+- ${modeInstructions}
 
 Odpovězte pouze textem zadání úkolu pro studenta (bez dalších komentářů, bez markdown formátování).`
 
@@ -136,9 +184,20 @@ Odpovězte pouze textem zadání úkolu pro studenta (bez dalších komentářů
       assignment = fallbackAssignment
     }
     
+    if (assignmentModeState === 'uniform' && targetGroupId && supabase) {
+      const { error: storeError } = await supabase
+        .from('groups')
+        .update({ shared_assignment: assignment })
+        .eq('id', targetGroupId)
+      if (storeError) {
+        console.error('Error storing shared assignment:', storeError)
+      }
+    }
+    
     return {
       success: true,
-      assignment
+      assignment,
+      shared: assignmentModeState === 'uniform'
     }
   } catch (error: any) {
     console.error('Generate assignment error:', error)
@@ -148,10 +207,18 @@ Odpovězte pouze textem zadání úkolu pro studenta (bez dalších komentářů
     }
     
     if (fallbackAssignment) {
+      if (assignmentModeState === 'uniform' && targetGroupId && supabase) {
+        await supabase
+          .from('groups')
+          .update({ shared_assignment: fallbackAssignment })
+          .eq('id', targetGroupId)
+      }
+      
       return {
         success: true,
         assignment: fallbackAssignment,
-        fallback: true
+        fallback: true,
+        shared: assignmentModeState === 'uniform'
       }
     }
     

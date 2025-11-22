@@ -77,7 +77,22 @@ export default defineEventHandler(async (event) => {
       // Continue anyway
     }
     
-    // 4. Delete goals (references groups)
+    // 4. Delete progress that might not have group_id set but references these goals
+    if (goals && goals.length > 0) {
+      const goalIds = goals.map(goal => goal.id).filter(Boolean)
+      if (goalIds.length > 0) {
+        const { error: goalProgressError } = await supabase
+          .from('student_progress')
+          .delete()
+          .in('goal_id', goalIds as string[])
+        
+        if (goalProgressError) {
+          console.error('Error deleting goal-related progress:', goalProgressError)
+        }
+      }
+    }
+    
+    // 5. Delete goals (references groups)
     const { error: goalsError } = await supabase
       .from('goals')
       .delete()
@@ -91,7 +106,7 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // 5. Delete group_members (references groups)
+    // 6. Delete group_members (references groups)
     const { error: membersError } = await supabase
       .from('group_members')
       .delete()
@@ -105,7 +120,7 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // 6. Finally, delete the group itself
+    // 7. Finally, delete the group itself
     const { error: deleteError } = await supabase
       .from('groups')
       .delete()

@@ -98,6 +98,19 @@
           "primaryKey": false,
           "notNull": true
         },
+        "assignment_mode": {
+          "name": "assignment_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'uniform'"
+        },
+        "shared_assignment": {
+          "name": "shared_assignment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "teacher_id": {
           "name": "teacher_id",
           "type": "uuid",

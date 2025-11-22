@@ -75,6 +75,7 @@ export default defineEventHandler(async (event) => {
         id: groupData.id,
         name: groupData.name,
         description: groupData.description,
+        assignmentMode: groupData.assignment_mode || 'uniform',
         qrCode: groupData.qr_code,
         createdAt: groupData.created_at
       },

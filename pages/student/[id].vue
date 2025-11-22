@@ -36,6 +36,7 @@
           :group-description="group.description"
           :group-name="group.name"
           :student-name="studentInfo.nickname"
+          :assignment-mode="group.assignmentMode || 'uniform'"
           :height="'600px'"
         />
         <div v-else class="flex items-center justify-center h-full text-gray-500">
@@ -50,10 +51,13 @@
 </template>
 
 <script setup lang="ts">
+type AssignmentMode = 'uniform' | 'variant'
+
 interface Group {
   id: string
   name: string
   description?: string
+  assignmentMode?: AssignmentMode
 }
 
 interface StudentInfo {
@@ -102,7 +106,10 @@ const loadGroup = async () => {
     const response = await $fetch<{ success: boolean; group: Group }>(`/api/groups/${groupId}/info`)
     
     if (response.success) {
-      group.value = response.group
+      group.value = {
+        ...response.group,
+        assignmentMode: response.group.assignmentMode || 'uniform'
+      }
     } else {
       router.push('/')
     }
@@ -146,6 +153,10 @@ const systemPrompt = computed(() => {
   const groupName = group.value?.name || 'této skupině'
   const studentName = studentInfo.value?.nickname || 'studente'
   const groupDesc = group.value?.description || ''
+  const assignmentMode = group.value?.assignmentMode || 'uniform'
+  const assignmentModeNote = assignmentMode === 'variant'
+    ? 'Každý student dostává obdobné zadání, ale s jinými číselnými hodnotami – zachovejte stejnou obtížnost.'
+    : 'Všichni studenti mají stejné zadání, aby bylo možné srovnat jejich postup.'
   
   // Build goals context
   let goalsContext = ''
@@ -168,7 +179,8 @@ Jste přátelský, nápomocný a motivující asistent, který pomáhá student�
 Kontext:
 - Student se jmenuje: ${studentName}
 - Nachází se ve skupině: ${groupName}
-${groupDesc ? `- Vodítko pro vás (popis zaměření skupiny): ${groupDesc}` : ''}${goalsContext}
+${groupDesc ? `- Vodítko pro vás (popis zaměření skupiny): ${groupDesc}\n` : ''}- Režim zadání: ${assignmentMode === 'variant' ? 'variantní zadání (jiné hodnoty, stejná obtížnost)' : 'stejné zadání pro všechny'}
+- ${assignmentModeNote}${goalsContext}
 
 VÁŠ ÚKOL:
 - Vytvořte a zadávejte studentovi úkoly na základě cílů skupiny a vodítka výše

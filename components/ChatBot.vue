@@ -161,6 +161,8 @@ interface Goal {
   percentage: number
 }
 
+type AssignmentMode = 'uniform' | 'variant'
+
 interface Props {
   userId?: string
   groupId?: string
@@ -169,12 +171,14 @@ interface Props {
   groupDescription?: string
   groupName?: string
   studentName?: string
+  assignmentMode?: AssignmentMode
   height?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   height: '600px',
-  goals: () => []
+  goals: () => [],
+  assignmentMode: 'uniform'
 })
 
 const { messages, isLoading, error, sendMessage, clearMessages, addAssistantMessage } = useChat({
@@ -217,13 +221,17 @@ const generateWelcomeMessage = async (): Promise<string> => {
       const response = await $fetch<{
         success: boolean
         assignment: string
+        shared?: boolean
+        fallback?: boolean
       }>('/api/chat/generate-assignment', {
         method: 'POST',
         body: {
           groupDescription: props.groupDescription,
           goals: props.goals || [],
           studentName: props.studentName,
-          groupName: props.groupName
+          groupName: props.groupName,
+          assignmentMode: props.assignmentMode,
+          groupId: props.groupId
         }
       })
       
@@ -290,7 +298,8 @@ const showWelcome = async () => {
       groupDescription: props.groupDescription,
       goalsCount: props.goals?.length || 0,
       studentName: props.studentName,
-      groupName: props.groupName
+      groupName: props.groupName,
+      assignmentMode: props.assignmentMode
     })
 
     const welcomeMessage = await generateWelcomeMessage()
@@ -383,7 +392,7 @@ watch(() => messages.value.length, () => {
 
 // Show welcome message when props are ready
 watch(
-  [() => props.goals, () => props.groupDescription, () => props.groupName, () => props.studentName],
+  [() => props.goals, () => props.groupDescription, () => props.groupName, () => props.studentName, () => props.assignmentMode],
   () => {
     scheduleWelcome()
   },

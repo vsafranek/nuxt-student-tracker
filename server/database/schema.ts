@@ -13,6 +13,8 @@ export const groups = pgTable('groups', {
   name: text('name').notNull(),
   description: text('description'),
   qrCode: text('qr_code').notNull(),
+  assignmentMode: text('assignment_mode').notNull().default('uniform'),
+  sharedAssignment: text('shared_assignment'),
   teacherId: uuid('teacher_id').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow()
 })

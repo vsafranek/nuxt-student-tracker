@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
     // Get group info (no auth required - anyone can view group info to join)
     const { data: group, error } = await supabase
       .from('groups')
-      .select('id, name, description, created_at')
+      .select('id, name, description, created_at, assignment_mode')
       .eq('id', groupId)
       .single()
     
@@ -31,7 +31,8 @@ export default defineEventHandler(async (event) => {
       group: {
         id: group.id,
         name: group.name,
-        description: group.description
+        description: group.description,
+        assignmentMode: group.assignment_mode || 'uniform'
       }
     }
   } catch (error: any) {

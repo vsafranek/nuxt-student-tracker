@@ -55,12 +55,22 @@ export default defineEventHandler(async (event) => {
     }
     
     // Update the group
+    const assignmentMode = body.assignmentMode === 'variant' ? 'variant' : 'uniform'
+
+    const updatePayload: Record<string, any> = {
+      name: body.name,
+      description: body.description,
+      assignment_mode: assignmentMode
+    }
+
+    // Pokud se přepíná na variantní režim, smažeme sdílené zadání
+    if (assignmentMode === 'variant') {
+      updatePayload.shared_assignment = null
+    }
+
     const { data: updatedGroup, error: updateError } = await supabase
       .from('groups')
-      .update({
-        name: body.name,
-        description: body.description,
-      } as never)
+      .update(updatePayload as never)
       .eq('id', groupId)
       .select()
       .single()
@@ -88,6 +98,7 @@ export default defineEventHandler(async (event) => {
         id: groupData.id,
         name: groupData.name,
         description: groupData.description,
+        assignmentMode: groupData.assignment_mode || 'uniform',
         qrCode: groupData.qr_code, // Map snake_case to camelCase
         createdAt: groupData.created_at
       }
