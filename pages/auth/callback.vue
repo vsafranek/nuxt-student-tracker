@@ -45,16 +45,17 @@ onMounted(async () => {
     // Wait a bit for better UX
     await new Promise(resolve => setTimeout(resolve, 500))
     
-    const { data: { session }, error } = await supabase.auth.getSession()
+    // More secure - authenticates with Supabase Auth server
+    const { data: { user }, error } = await supabase.auth.getUser()
     
     if (error) throw error
     
-    if (session?.user) {
+    if (user) {
       // Zkontrolovat nebo vytvořit uživatelský záznam
       const { data: existingUser, error: userError } = await supabase
         .from('users')
         .select('*')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single()
       
       if (userError && userError.code !== 'PGRST116') {
@@ -64,9 +65,9 @@ onMounted(async () => {
       if (!existingUser) {
         // Vytvořit nový záznam
         const { error: insertError } = await supabase.from('users').insert({
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Uživatel',
+          id: user.id,
+          email: user.email,
+          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Uživatel',
           role: 'teacher', // Výchozí role
         })
         
@@ -91,7 +92,7 @@ onMounted(async () => {
         await router.push('/student/groups')
       }
     } else {
-      throw new Error('Nepodařilo se získat session')
+      throw new Error('Nepodařilo se získat uživatele')
     }
   } catch (error: any) {
     console.error('Callback error:', error)

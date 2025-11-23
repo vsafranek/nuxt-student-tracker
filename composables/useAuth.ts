@@ -26,10 +26,10 @@ export const useAuth = () => {
 
   // Přihlášení přes Google
   const signInWithGoogle = async () => {
-    // Zkontrolovat, zda už není uživatel přihlášen
-    const { data: { session } } = await supabase.auth.getSession()
+    // Zkontrolovat, zda už není uživatel přihlášen (more secure - authenticates with Supabase Auth server)
+    const { data: { user } } = await supabase.auth.getUser()
     
-    if (session?.user) {
+    if (user) {
       // Uživatel je už přihlášen, neprovádět OAuth flow
       return
     }

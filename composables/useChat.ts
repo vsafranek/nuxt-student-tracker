@@ -52,7 +52,10 @@ interface ChatMessage {
     const irrelevantStreak = ref(0)
     const lastHelpRequestAt = ref<number | null>(null)
     const hasLoadedHistory = ref(false)
+    const currentNeedsHelp = ref<boolean>(false)
+    const helpResolvedAt = ref<number | null>(null)
     let inactivityTimer: ReturnType<typeof setTimeout> | null = null
+    let helpStatusCheckInterval: ReturnType<typeof setInterval> | null = null
   
     type PersistMessagePayload = {
       role: 'user' | 'assistant'
@@ -191,16 +194,23 @@ interface ChatMessage {
           }
         })
   
-        const historyMessages = (response.messages || []).map((msg) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.created_at ? new Date(msg.created_at) : new Date(),
-          isRelevant: typeof msg.is_relevant === 'boolean' ? msg.is_relevant : undefined,
-          goalIndex: msg.metadata?.goalIndex ?? null,
-          progressIncrease: msg.metadata?.progressIncrease ?? null,
-          analysisReason: msg.metadata?.reason
-        })) as ChatMessage[]
+        const historyMessages = (response.messages || []).map((msg) => {
+          const message: ChatMessage & { metadata?: any } = {
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.created_at ? new Date(msg.created_at) : new Date(),
+            isRelevant: typeof msg.is_relevant === 'boolean' ? msg.is_relevant : undefined,
+            goalIndex: msg.metadata?.goalIndex ?? null,
+            progressIncrease: msg.metadata?.progressIncrease ?? null,
+            analysisReason: msg.metadata?.reason
+          }
+          // Preserve metadata for special message types
+          if (msg.metadata?.type) {
+            (message as any).metadata = { type: msg.metadata.type }
+          }
+          return message
+        }) as ChatMessage[]
   
         if (historyMessages.length > 0) {
           messages.value = [...buildSystemMessages(), ...historyMessages]
@@ -238,11 +248,54 @@ interface ChatMessage {
       }
     }
 
+    const checkNeedsHelpStatus = async (): Promise<boolean> => {
+      if (!options.groupId || !options.userId) {
+        return false
+      }
+
+      try {
+        const response = await $fetch<{ success: boolean; students: any[] }>(
+          `/api/groups/${options.groupId}/details`
+        )
+        
+        if (response.success && response.students) {
+          const student = response.students.find((s: any) => s.deviceId === options.userId)
+          if (student) {
+            const wasNeedsHelp = currentNeedsHelp.value
+            currentNeedsHelp.value = student.needsHelp || false
+            
+            // If help was resolved (changed from true to false)
+            if (wasNeedsHelp && !currentNeedsHelp.value) {
+              helpResolvedAt.value = Date.now()
+              await addAssistantMessagePersisted(
+                '✅ Učitel potvrdil, že pomoc byla vyřešena. Můžu ti znovu pomoci, pokud budeš potřebovat.',
+                { type: 'help_resolved' }
+              )
+            }
+            
+            return currentNeedsHelp.value
+          }
+        }
+        
+        return false
+      } catch (err) {
+        console.error('Error checking needs help status:', err)
+        return false
+      }
+    }
+
     const sendInactivityReminder = async () => {
       // Don't send reminder if all goals are completed
       const allCompleted = await areAllGoalsCompleted()
       if (allCompleted) {
         console.log('All goals completed, skipping inactivity reminder')
+        return
+      }
+      
+      // Check if help is already requested - if so, don't send reminder
+      await checkNeedsHelpStatus()
+      if (currentNeedsHelp.value) {
+        console.log('Help already requested, skipping inactivity reminder')
         return
       }
       
@@ -261,6 +314,14 @@ interface ChatMessage {
     }
 
     resetInactivityTimer()
+    
+    // Periodically check for help status changes (every 5 seconds)
+    if (typeof window !== 'undefined') {
+      helpStatusCheckInterval = setInterval(async () => {
+        await checkNeedsHelpStatus()
+      }, 5000)
+    }
+    
     const addSystemMessage = (content: string) => {
       const message: ChatMessage = {
         role: 'system',
@@ -287,18 +348,21 @@ interface ChatMessage {
       }
     }
   
-    const addAssistantMessage = (content: string) => {
-      const message: ChatMessage = {
+    const addAssistantMessage = (content: string, metadata?: Record<string, any>) => {
+      const message: ChatMessage & { metadata?: any } = {
         role: 'assistant',
         content,
         timestamp: new Date()
+      }
+      if (metadata) {
+        (message as any).metadata = metadata
       }
       messages.value.push(message)
       return message
     }
   
     const addAssistantMessagePersisted = async (content: string, metadata?: Record<string, any>) => {
-      const message = addAssistantMessage(content)
+      const message = addAssistantMessage(content, metadata)
       await persistAssistantMessage(message, metadata)
       return message
     }
@@ -323,6 +387,13 @@ interface ChatMessage {
         return
       }
       
+      // Check if help is already requested - if so, don't notify again
+      await checkNeedsHelpStatus()
+      if (currentNeedsHelp.value) {
+        console.log('Help already requested, skipping teacher notification')
+        return
+      }
+      
       const now = Date.now()
       if (lastHelpRequestAt.value && now - lastHelpRequestAt.value < HELP_COOLDOWN_MS) {
         return
@@ -338,7 +409,11 @@ interface ChatMessage {
           }
         })
         lastHelpRequestAt.value = now
-        await addAssistantMessagePersisted('Upozorňuji učitele, že potřebujete pomoc s úkolem.')
+        currentNeedsHelp.value = true
+        await addAssistantMessagePersisted(
+          '🔔 Upozorňuji učitele, že potřebujete pomoc s úkolem. Učitel ti brzy pomůže.',
+          { type: 'teacher_notified' }
+        )
       } catch (notificationError) {
         console.error('Error notifying teacher:', notificationError)
       }
@@ -386,7 +461,13 @@ interface ChatMessage {
               // Check if all goals are completed before notifying teacher
               const allCompleted = await areAllGoalsCompleted()
               if (!allCompleted) {
-                await notifyTeacher()
+                // Check if help is already requested
+                await checkNeedsHelpStatus()
+                if (!currentNeedsHelp.value) {
+                  await notifyTeacher()
+                } else {
+                  console.log('Help already requested, skipping help notification for irrelevant streak')
+                }
               } else {
                 console.log('All goals completed, skipping help notification for irrelevant streak')
               }
@@ -501,7 +582,13 @@ interface ChatMessage {
       error.value = null
       irrelevantStreak.value = 0
       lastHelpRequestAt.value = null
+      currentNeedsHelp.value = false
+      helpResolvedAt.value = null
       resetInactivityTimer()
+      if (helpStatusCheckInterval) {
+        clearInterval(helpStatusCheckInterval)
+        helpStatusCheckInterval = null
+      }
     }
   
     return {

@@ -13,10 +13,10 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Get authenticated user
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    // Get authenticated user (more secure - authenticates with Supabase Auth server)
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
     
-    if (sessionError || !session?.user) {
+    if (userError || !user) {
       throw createError({
         statusCode: 401,
         message: 'Neautorizovaný přístup. Prosím přihlaste se.'
@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    if (group.teacher_id !== session.user.id) {
+    if (group.teacher_id !== user.id) {
       throw createError({
         statusCode: 403,
         message: 'Nemáte oprávnění upravovat tuto skupinu'

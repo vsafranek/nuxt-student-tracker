@@ -7,13 +7,13 @@ export default defineEventHandler(async (event) => {
     
     console.log('GET /api/groups - Query params:', query)
     
-    // Get authenticated session (more reliable for server-side)
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    // Get authenticated user (more secure - authenticates with Supabase Auth server)
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
     
-    console.log('Session check - Session:', session?.user?.id, 'Error:', sessionError)
+    console.log('User check - User:', user?.id, 'Error:', userError)
     
-    if (sessionError || !session?.user) {
-      console.error('Authentication failed:', sessionError)
+    if (userError || !user) {
+      console.error('Authentication failed:', userError)
       throw createError({
         statusCode: 401,
         message: 'Neautorizovaný přístup. Prosím přihlaste se.'
@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
     }
     
     // Use authenticated user's ID as teacherId (ignore query param for security)
-    const teacherId = session.user.id
+    const teacherId = user.id
     
     console.log('Loading groups for teacher:', teacherId)
     console.log('Teacher ID type:', typeof teacherId)

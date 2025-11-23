@@ -1,8 +1,9 @@
 export default defineNuxtRouteMiddleware(async (to, from) => {
     const supabase = useSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    // More secure - authenticates with Supabase Auth server
+    const { data: { user } } = await supabase.auth.getUser()
     
-    if (!session) {
+    if (!user) {
       return navigateTo('/')
     }
   })

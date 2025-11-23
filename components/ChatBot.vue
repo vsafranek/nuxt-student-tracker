@@ -57,7 +57,11 @@
                 ? 'bg-blue-600 text-white'
                 : 'bg-white text-gray-900 border border-gray-200',
               // Green border for relevant messages
-              message.isRelevant && message.role === 'user' && 'ring-2 ring-green-500 ring-offset-1 border-green-500'
+              message.isRelevant && message.role === 'user' && 'ring-2 ring-green-500 ring-offset-1 border-green-500',
+              // Highlight for teacher notification
+              (message as any).metadata?.type === 'teacher_notified' && 'ring-2 ring-orange-500 ring-offset-1 border-orange-500 bg-orange-50',
+              // Highlight for help resolved
+              (message as any).metadata?.type === 'help_resolved' && 'ring-2 ring-green-500 ring-offset-1 border-green-500 bg-green-50'
             ]"
           >
             <MessageContent :content="message.content" />
@@ -90,6 +94,26 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>Pokrok k cíli</span>
+          </div>
+          <!-- Teacher notified indicator -->
+          <div
+            v-if="message.role === 'assistant' && (message as any).metadata?.type === 'teacher_notified'"
+            class="mt-1 flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <span>Učitel byl upozorněn</span>
+          </div>
+          <!-- Help resolved indicator -->
+          <div
+            v-if="message.role === 'assistant' && (message as any).metadata?.type === 'help_resolved'"
+            class="mt-1 flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Pomoc byla vyřešena</span>
           </div>
         </div>
 

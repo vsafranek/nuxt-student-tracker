@@ -470,24 +470,24 @@ const showLoginModal = ref(false)
 const isLoading = ref(false)
 const error = ref('')
 
-// Zkontrolovat session při načtení stránky
+// Zkontrolovat user při načtení stránky (more secure - authenticates with Supabase Auth server)
 onMounted(async () => {
   try {
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { user } } = await supabase.auth.getUser()
     
-    if (session?.user) {
+    if (user) {
       // Uživatel je přihlášen, přesměrovat na dashboard
       const { data: userData } = await supabase
         .from('users')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single()
       
       const role = userData?.role || 'teacher'
       await router.push(role === 'teacher' ? '/teacher/dashboard' : '/student/groups')
     }
   } catch (error) {
-    console.error('Error checking session:', error)
+    console.error('Error checking user:', error)
   }
 })
 
@@ -496,10 +496,10 @@ const handleGoogleSignIn = async () => {
   isLoading.value = true
   
   try {
-    // Zkontrolovat, zda už není uživatel přihlášen
-    const { data: { session } } = await supabase.auth.getSession()
+    // Zkontrolovat, zda už není uživatel přihlášen (more secure - authenticates with Supabase Auth server)
+    const { data: { user } } = await supabase.auth.getUser()
     
-    if (session?.user) {
+    if (user) {
       // Uživatel je přihlášen, přesměrovat na dashboard
       isLoading.value = false
       const { data: userData } = await supabase
