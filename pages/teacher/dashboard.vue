@@ -134,7 +134,13 @@
               <div class="space-y-3">
                 <div class="flex items-center justify-between text-sm">
                   <span class="text-gray-600">Přihlášení studenti:</span>
-                  <span class="font-semibold text-gray-900">{{ group.studentCount || 0 }}</span>
+                  <span class="font-semibold text-gray-900">
+                    {{ group.studentCount || 0 }}
+                    <span v-if="(group.studentCount || 0) > 0" class="inline-flex items-center gap-1 ml-2 text-xs font-normal">
+                      <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                      <span class="text-gray-500">{{ group.onlineCount || 0 }} online</span>
+                    </span>
+                  </span>
                 </div>
                 <div v-if="(group.completedCount || 0) > 0" class="flex items-center justify-between text-sm">
                   <span class="text-gray-600">Dokončeno:</span>
@@ -507,6 +513,7 @@
     name: string
     description: string
     studentCount?: number
+    onlineCount?: number
     averageProgress?: number
     helpNeeded?: number
     completedCount?: number
@@ -572,6 +579,13 @@
       
       if (response.success) {
         groups.value = response.groups
+        console.log('Dashboard: Loaded groups with stats:', groups.value.map(g => ({
+          id: g.id,
+          name: g.name,
+          studentCount: g.studentCount,
+          onlineCount: g.onlineCount,
+          averageProgress: g.averageProgress
+        })))
         // Subscribe to realtime after groups are loaded
         subscribeToRealtime()
       }
@@ -721,6 +735,73 @@
   
   // Realtime subscriptions
   let realtimeChannel: any = null
+  let updateTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  const UPDATE_DEBOUNCE_MS = 1000 // Update max every 1 second per group
+
+  // Update stats for a single group without reloading all groups
+  const updateGroupStats = async (groupId: string) => {
+    const groupIndex = groups.value.findIndex(g => g.id === groupId)
+    if (groupIndex === -1) {
+      console.warn('Dashboard: Group not found in array:', groupId)
+      return
+    }
+
+    const oldGroup = groups.value[groupIndex]
+    if (!oldGroup) {
+      console.warn('Dashboard: Group not found at index:', groupIndex)
+      return
+    }
+    
+    console.log('Dashboard: Updating stats for group:', {
+      groupId,
+      groupName: oldGroup.name,
+      oldOnlineCount: oldGroup.onlineCount
+    })
+
+    try {
+      // Fetch only stats for this group
+      const response = await $fetch<{ success: boolean; stats: {
+        studentCount: number
+        onlineCount: number
+        averageProgress: number
+        helpNeeded: number
+        completedCount: number
+      } }>(`/api/groups/${groupId}/stats`)
+      
+      console.log('Dashboard: API response:', response)
+      
+      if (response.success && response.stats) {
+        // Create a new array to ensure Vue reactivity
+        const updatedGroups = groups.value.map((group, index) => {
+          if (index === groupIndex) {
+            // Create a completely new object for the updated group
+            const updated = {
+              ...group,
+              onlineCount: response.stats.onlineCount,
+              averageProgress: response.stats.averageProgress,
+              studentCount: response.stats.studentCount,
+              helpNeeded: response.stats.helpNeeded,
+              completedCount: response.stats.completedCount
+            }
+            console.log('Dashboard: Updated group stats:', {
+              groupId,
+              groupName: updated.name,
+              newOnlineCount: updated.onlineCount,
+              oldOnlineCount: oldGroup.onlineCount
+            })
+            return updated
+          }
+          return group
+        })
+        
+        groups.value = updatedGroups
+      } else {
+        console.warn('Dashboard: Invalid API response:', response)
+      }
+    } catch (error) {
+      console.error('Dashboard: Error updating group stats:', error)
+    }
+  }
 
   const subscribeToRealtime = () => {
     if (!supabase || !user.value) return
@@ -736,9 +817,8 @@
     if (groupIds.length === 0) return
 
     // Subscribe to student_progress changes for all groups
-    // We'll listen to all changes and filter by group_id in the handler
     realtimeChannel = supabase
-      .channel('dashboard-progress-updates')
+      .channel('dashboard-updates')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -746,22 +826,59 @@
       }, (payload: any) => {
         // Check if the change is for one of our groups
         const changedGroupId = payload.new?.group_id || payload.old?.group_id
-        console.log('Dashboard: Realtime event for student_progress:', {
-          eventType: payload.eventType,
-          groupId: changedGroupId,
-          isOurGroup: changedGroupId && groupIds.includes(changedGroupId)
-        })
         
         if (changedGroupId && groupIds.includes(changedGroupId)) {
-          // When progress changes, reload groups to update average progress
-          console.log('Dashboard: Reloading groups due to progress change')
-          loadGroups()
+          // Debounce updates to avoid too many API calls
+          const existingTimer = updateTimers.get(changedGroupId)
+          if (existingTimer) {
+            clearTimeout(existingTimer)
+          }
+          
+          const timer = setTimeout(() => {
+            console.log('Dashboard: Updating stats for group due to progress change:', changedGroupId)
+            updateGroupStats(changedGroupId)
+            updateTimers.delete(changedGroupId)
+          }, UPDATE_DEBOUNCE_MS)
+          
+          updateTimers.set(changedGroupId, timer)
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'group_members'
+      }, (payload: any) => {
+        // Check if the change is for one of our groups and if last_active_at changed
+        const changedGroupId = payload.new?.group_id || payload.old?.group_id
+        
+        console.log('Dashboard: Realtime event for group_members:', {
+          eventType: payload.eventType,
+          groupId: changedGroupId,
+          isOurGroup: changedGroupId && groupIds.includes(changedGroupId),
+          hasLastActiveAt: !!payload.new?.last_active_at,
+          lastActiveAt: payload.new?.last_active_at
+        })
+        
+        if (changedGroupId && groupIds.includes(changedGroupId) && payload.new?.last_active_at) {
+          // Debounce updates to avoid too many API calls
+          const existingTimer = updateTimers.get(changedGroupId)
+          if (existingTimer) {
+            clearTimeout(existingTimer)
+          }
+          
+          const timer = setTimeout(() => {
+            console.log('Dashboard: Updating stats for group due to online status change:', changedGroupId)
+            updateGroupStats(changedGroupId)
+            updateTimers.delete(changedGroupId)
+          }, UPDATE_DEBOUNCE_MS)
+          
+          updateTimers.set(changedGroupId, timer)
         }
       })
       .subscribe((status) => {
         console.log('Dashboard: Realtime subscription status:', status)
         if (status === 'SUBSCRIBED') {
-          console.log('Dashboard: Successfully subscribed to student_progress updates')
+          console.log('Dashboard: Successfully subscribed to student_progress and group_members updates')
         }
       })
   }
@@ -783,6 +900,9 @@
       supabase.removeChannel(realtimeChannel)
       realtimeChannel = null
     }
+    // Clean up debounce timers
+    updateTimers.forEach(timer => clearTimeout(timer))
+    updateTimers.clear()
   })
   </script>
   

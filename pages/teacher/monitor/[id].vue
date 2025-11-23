@@ -402,7 +402,17 @@ const resolveHelp = async (studentId: string) => {
 
 const formatHelpDuration = (dateString?: string | null) => {
   if (!dateString) return ''
-  const diffMs = Date.now() - new Date(dateString).getTime()
+  
+  // Normalize the date string - if it doesn't have timezone, assume UTC
+  let normalizedDateString = dateString
+  if (typeof normalizedDateString === 'string' && 
+      !normalizedDateString.endsWith('Z') && 
+      !normalizedDateString.includes('+') && 
+      !normalizedDateString.includes('-', 10)) { // Check if timezone offset exists (after date part)
+    normalizedDateString = normalizedDateString + 'Z'
+  }
+  
+  const diffMs = Date.now() - new Date(normalizedDateString).getTime()
   if (diffMs < 60000) {
     return 'méně než 1 min'
   }

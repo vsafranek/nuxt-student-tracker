@@ -134,6 +134,81 @@ export default defineEventHandler(async (event) => {
           .eq('group_id', group.id)
           .eq('needs_help', true)
         
+        // Počet online studentů (last_active_at < 60 sekund)
+        const ONLINE_THRESHOLD_MS = 60 * 1000
+        const { data: allMembers } = await supabase
+          .from('group_members')
+          .select('last_active_at')
+          .eq('group_id', group.id)
+        
+        let onlineCount = 0
+        if (allMembers && allMembers.length > 0) {
+          const now = Date.now()
+          const memberDetails: any[] = []
+          
+          onlineCount = allMembers.filter((member: any) => {
+            if (!member.last_active_at) {
+              memberDetails.push({ last_active_at: null, isOnline: false, reason: 'No last_active_at' })
+              return false
+            }
+            
+            // Parse the timestamp - handle both string and Date objects
+            let lastActive: number
+            try {
+              // If the string doesn't have timezone info, assume it's UTC and add Z
+              let lastActiveAtValue = member.last_active_at
+              if (typeof lastActiveAtValue === 'string' && 
+                  !lastActiveAtValue.endsWith('Z') && 
+                  !lastActiveAtValue.includes('+') && 
+                  !lastActiveAtValue.includes('-', 10)) { // Check if timezone offset exists (after date part)
+                lastActiveAtValue = lastActiveAtValue + 'Z'
+              }
+              
+              const lastActiveDate = new Date(lastActiveAtValue)
+              if (isNaN(lastActiveDate.getTime())) {
+                memberDetails.push({ 
+                  last_active_at: member.last_active_at, 
+                  normalized: lastActiveAtValue,
+                  isOnline: false, 
+                  reason: 'Invalid date' 
+                })
+                return false
+              }
+              lastActive = lastActiveDate.getTime()
+            } catch (e) {
+              memberDetails.push({ 
+                last_active_at: member.last_active_at, 
+                isOnline: false, 
+                reason: 'Date parse error',
+                error: e
+              })
+              return false
+            }
+            
+            const diff = now - lastActive
+            const isOnline = diff >= 0 && diff < ONLINE_THRESHOLD_MS
+            
+            memberDetails.push({
+              last_active_at: member.last_active_at,
+              lastActiveTimestamp: lastActive,
+              now,
+              diff,
+              diffSeconds: Math.round(diff / 1000),
+              threshold: ONLINE_THRESHOLD_MS,
+              isOnline
+            })
+            return isOnline
+          }).length
+          
+          console.log(`[API] Group ${group.id} (${group.name}): ${onlineCount} online out of ${allMembers.length} members`)
+          if (onlineCount === 0 && allMembers.length > 0) {
+            // Only log details if no one is online but there are members (for debugging)
+            console.log(`[API] Member details (debugging):`, JSON.stringify(memberDetails, null, 2))
+          }
+        } else {
+          console.log(`[API] Group ${group.id} (${group.name}): No members found`)
+        }
+        
         // Počet studentů, kteří dokončili všechny cíle
         let completedCount = 0
         if (goals && goals.length > 0) {
@@ -144,7 +219,7 @@ export default defineEventHandler(async (event) => {
             .eq('group_id', group.id)
           
           if (allMembers) {
-            for (const member of allMembers) {
+            for (const member of allMembers as any[]) {
               const memberId = member.id
               // Zkontrolovat, zda má student progress pro všechny cíle
               const memberProgressRows = (progressRows || []).filter((row: any) => row.group_member_id === memberId)
@@ -169,6 +244,7 @@ export default defineEventHandler(async (event) => {
           assignmentMode: group.assignment_mode || 'uniform',
           createdAt: group.created_at,
           studentCount: studentCount || 0,
+          onlineCount,
           averageProgress,
           helpNeeded: helpNeeded || 0,
           completedCount
