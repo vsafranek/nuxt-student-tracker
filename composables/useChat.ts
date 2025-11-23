@@ -27,9 +27,37 @@ interface ChatMessage {
   
   const HELP_THRESHOLD = 2
   const HELP_COOLDOWN_MS = 5 * 60 * 1000
-  const INACTIVITY_LIMIT_MS = 3 * 60 * 1000
+  const DEFAULT_INACTIVITY_LIMIT_MS = 3 * 60 * 1000
 
   export const useChat = (options: ChatOptions = {}) => {
+    // Settings state
+    const appSettings = ref({
+      inactivityTimeoutMinutes: 3,
+      allowDirectAnswers: false
+    })
+    const settingsLoaded = ref(false)
+
+    // Load settings from API
+    const loadSettings = async () => {
+      if (!options.groupId || settingsLoaded.value) return
+      
+      try {
+        const response = await $fetch<{ success: boolean; settings: any }>('/api/settings/get')
+        if (response.success) {
+          appSettings.value = response.settings
+          settingsLoaded.value = true
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error)
+        // Use defaults if loading fails
+        settingsLoaded.value = true
+      }
+    }
+
+    // Computed inactivity limit based on settings
+    const inactivityLimitMs = computed(() => {
+      return (appSettings.value.inactivityTimeoutMinutes || 3) * 60 * 1000
+    })
     const buildSystemMessages = () => {
       if (!options.systemPrompt) {
         return []
@@ -310,10 +338,13 @@ interface ChatMessage {
       inactivityTimer = setTimeout(async () => {
         await sendInactivityReminder()
         resetInactivityTimer()
-      }, INACTIVITY_LIMIT_MS)
+      }, inactivityLimitMs.value)
     }
 
-    resetInactivityTimer()
+    // Load settings and then start inactivity timer
+    loadSettings().then(() => {
+      resetInactivityTimer()
+    })
     
     // Periodically check for help status changes (every 5 seconds)
     if (typeof window !== 'undefined') {

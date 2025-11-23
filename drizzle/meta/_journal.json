@@ -50,6 +50,13 @@
       "when": 1763577000000,
       "tag": "0006_group_members_validation",
       "breakpoints": false
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1763578000000,
+      "tag": "0007_app_settings",
+      "breakpoints": false
     }
   ]
 }

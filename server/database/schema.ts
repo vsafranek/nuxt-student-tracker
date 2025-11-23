@@ -68,3 +68,12 @@ export const groupMembers = pgTable('group_members', {
   lastMessageReason: text('last_message_reason'),
   lastMessageAt: timestamp('last_message_at')
 })
+
+export const appSettings = pgTable('app_settings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  teacherId: uuid('teacher_id').references(() => users.id).notNull().unique(),
+  inactivityTimeoutMinutes: integer('inactivity_timeout_minutes').notNull().default(3),
+  allowDirectAnswers: boolean('allow_direct_answers').notNull().default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+})
