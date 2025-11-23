@@ -136,6 +136,15 @@
                   <span class="text-gray-600">Přihlášení studenti:</span>
                   <span class="font-semibold text-gray-900">{{ group.studentCount || 0 }}</span>
                 </div>
+                <div v-if="(group.completedCount || 0) > 0" class="flex items-center justify-between text-sm">
+                  <span class="text-gray-600">Dokončeno:</span>
+                  <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    {{ group.completedCount }} hotovo
+                  </span>
+                </div>
                 <div v-if="(group.studentCount || 0) > 0" class="flex items-center justify-between text-sm">
                   <span class="text-gray-600">Průměrný pokrok:</span>
                   <span class="font-medium text-gray-900">{{ group.averageProgress || 0 }}%</span>
@@ -500,6 +509,7 @@
     studentCount?: number
     averageProgress?: number
     helpNeeded?: number
+    completedCount?: number
     createdAt?: string
     qrCode?: string
     assignmentMode?: AssignmentMode

@@ -215,7 +215,37 @@ interface ChatMessage {
       }
     }
   
+    const areAllGoalsCompleted = async (): Promise<boolean> => {
+      if (!options.groupId || !options.userId) {
+        return false
+      }
+
+      try {
+        const response = await $fetch<{ success: boolean; goals: any[] }>(
+          `/api/groups/${options.groupId}/goals-with-progress?deviceId=${options.userId}`
+        )
+        
+        if (response.success && response.goals && response.goals.length > 0) {
+          // Check if all goals are completed
+          const allCompleted = response.goals.every((goal: any) => goal.completed === true)
+          return allCompleted
+        }
+        
+        return false
+      } catch (err) {
+        console.error('Error checking if all goals completed:', err)
+        return false
+      }
+    }
+
     const sendInactivityReminder = async () => {
+      // Don't send reminder if all goals are completed
+      const allCompleted = await areAllGoalsCompleted()
+      if (allCompleted) {
+        console.log('All goals completed, skipping inactivity reminder')
+        return
+      }
+      
       await addAssistantMessagePersisted('Už jsi dlouho nenapsal žádnou zprávu. Jak pokračuješ v úkolu?')
       await notifyTeacher()
     }
@@ -286,6 +316,13 @@ interface ChatMessage {
         return
       }
       
+      // Don't notify teacher if all goals are completed
+      const allCompleted = await areAllGoalsCompleted()
+      if (allCompleted) {
+        console.log('All goals completed, skipping teacher notification')
+        return
+      }
+      
       const now = Date.now()
       if (lastHelpRequestAt.value && now - lastHelpRequestAt.value < HELP_COOLDOWN_MS) {
         return
@@ -346,7 +383,13 @@ interface ChatMessage {
           } else {
             irrelevantStreak.value += 1
             if (irrelevantStreak.value >= HELP_THRESHOLD) {
-              await notifyTeacher()
+              // Check if all goals are completed before notifying teacher
+              const allCompleted = await areAllGoalsCompleted()
+              if (!allCompleted) {
+                await notifyTeacher()
+              } else {
+                console.log('All goals completed, skipping help notification for irrelevant streak')
+              }
             }
           }
 

@@ -188,13 +188,13 @@
                     {{ getActivityLabel(student) }}
                   </span>
                   <span
-                    v-if="student.needsHelp"
+                    v-if="student.needsHelp && (student.progressPercentage ?? 0) < 100"
                     class="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 flex items-center gap-1"
                   >
                     Potřebuje pomoc • {{ formatHelpDuration(student.helpRequestedAt) }}
                   </span>
                   <button
-                    v-if="student.needsHelp"
+                    v-if="student.needsHelp && (student.progressPercentage ?? 0) < 100"
                     @click.stop="resolveHelp(student.id)"
                     class="text-sm text-red-600 hover:text-red-700 font-medium"
                   >
@@ -474,14 +474,30 @@ const isStudentOnline = (student: Student) => {
 
 const getActivityLabel = (student: Student) => {
   const online = isStudentOnline(student)
+  const isCompleted = (student.progressPercentage ?? 0) >= 100
+  
+  if (isCompleted && online) {
+    return 'Hotovo • Online'
+  }
   if (online) {
     return student.needsHelp ? 'Online • čeká na pomoc' : 'Online • pracuje'
+  }
+  if (isCompleted) {
+    return 'Hotovo • Offline'
   }
   return 'Offline'
 }
 
 const getActivityBadgeClass = (student: Student) => {
   const online = isStudentOnline(student)
+  const isCompleted = (student.progressPercentage ?? 0) >= 100
+  
+  if (isCompleted && online) {
+    return 'bg-emerald-100 text-emerald-800'
+  }
+  if (isCompleted) {
+    return 'bg-emerald-50 text-emerald-700'
+  }
   if (online) {
     return student.needsHelp ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
   }

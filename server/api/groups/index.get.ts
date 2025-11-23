@@ -134,6 +134,33 @@ export default defineEventHandler(async (event) => {
           .eq('group_id', group.id)
           .eq('needs_help', true)
         
+        // Počet studentů, kteří dokončili všechny cíle
+        let completedCount = 0
+        if (goals && goals.length > 0) {
+          // Získat všechny member IDs ze skupiny
+          const { data: allMembers } = await supabase
+            .from('group_members')
+            .select('id')
+            .eq('group_id', group.id)
+          
+          if (allMembers) {
+            for (const member of allMembers) {
+              const memberId = member.id
+              // Zkontrolovat, zda má student progress pro všechny cíle
+              const memberProgressRows = (progressRows || []).filter((row: any) => row.group_member_id === memberId)
+              
+              // Musí mít progress pro všechny cíle
+              if (memberProgressRows.length === goals.length) {
+                // Všechny cíle musí být dokončené
+                const allCompleted = memberProgressRows.every((row: any) => row.completed === true)
+                if (allCompleted) {
+                  completedCount++
+                }
+              }
+            }
+          }
+        }
+        
         return {
           id: group.id,
           name: group.name,
@@ -143,7 +170,8 @@ export default defineEventHandler(async (event) => {
           createdAt: group.created_at,
           studentCount: studentCount || 0,
           averageProgress,
-          helpNeeded: helpNeeded || 0
+          helpNeeded: helpNeeded || 0,
+          completedCount
         }
       })
     )
