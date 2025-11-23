@@ -128,9 +128,9 @@
                   <p class="text-sm text-gray-600 line-clamp-2">{{ group.description }}</p>
                 </div>
                 <div class="flex flex-col items-end gap-1">
-                  <span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full flex-shrink-0">
-                    Aktivní
-                  </span>
+                <span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full flex-shrink-0">
+                  Aktivní
+                </span>
                   <span
                     class="px-2 py-1 text-xs font-medium rounded-full flex-shrink-0"
                     :class="group.assignmentMode === 'variant'
@@ -922,7 +922,7 @@
         }
       })
   }
-
+  
   // Load data on mount
   onMounted(() => {
     loadGroups()

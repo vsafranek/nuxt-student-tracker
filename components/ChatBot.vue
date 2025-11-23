@@ -44,7 +44,7 @@
       <TransitionGroup name="message" tag="div" class="space-y-4">
         <div
           v-for="(message, index) in displayMessages"
-          :key="message.id || `${message.timestamp?.getTime() || index}-${message.content.slice(0, 20)}`"
+          :key="message.id || `${message.timestamp?.getTime() || index}-${(message.content || '').slice(0, 20)}`"
           :class="[
             'flex flex-col',
             message.role === 'user' ? 'items-end' : 'items-start'

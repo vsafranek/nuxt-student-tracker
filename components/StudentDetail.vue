@@ -103,7 +103,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const isLoading = ref(false)
+const isLoading = ref(true)
 const error = ref<string | null>(null)
 const goalsWithMessages = ref<GoalWithMessages[]>([])
 

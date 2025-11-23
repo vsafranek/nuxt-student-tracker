@@ -79,25 +79,29 @@ const getPrismLanguage = (lang: string): string | null => {
 const renderer: any = {
   code(code: string, language: string | undefined) {
     const lang = language || 'text'
-    let highlighted = code
+    // Ensure code is a string
+    const codeStr = typeof code === 'string' ? code : String(code || '')
+    let highlighted = codeStr
     
     const prismLang = getPrismLanguage(lang)
     if (prismLang && Prism.languages[prismLang]) {
       try {
-        highlighted = Prism.highlight(code, Prism.languages[prismLang], prismLang)
+        highlighted = Prism.highlight(codeStr, Prism.languages[prismLang], prismLang)
       } catch (e) {
         console.warn('Error highlighting code:', e)
-        highlighted = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        highlighted = codeStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       }
     } else {
       // No language or language not supported, just escape HTML
-      highlighted = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      highlighted = codeStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     }
     
     return `<pre class="language-${lang}"><code class="language-${lang}">${highlighted}</code></pre>`
   },
   codespan(code: string) {
-    const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // Ensure code is a string
+    const codeStr = typeof code === 'string' ? code : String(code || '')
+    const escaped = codeStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     return `<code class="inline-code">${escaped}</code>`
   }
 }
