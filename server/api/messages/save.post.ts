@@ -5,7 +5,16 @@ export default defineEventHandler(async (event) => {
     const supabase = await serverSupabaseClient(event)
     const body = await readBody(event)
     
-    const { content, groupId, deviceId, isRelevant, goalIndex, progressIncrease, metadata } = body
+    const {
+      content,
+      groupId,
+      deviceId,
+      role,
+      isRelevant,
+      goalIndex,
+      progressIncrease,
+      metadata
+    } = body
     
     if (!content || !groupId || !deviceId) {
       throw createError({
@@ -13,6 +22,8 @@ export default defineEventHandler(async (event) => {
         message: 'Chybí povinné údaje (content, groupId, deviceId)'
       })
     }
+    
+    const normalizedRole = role === 'assistant' ? 'assistant' : 'user'
     
     // Get group member by deviceId
     const { data: groupMember, error: memberError } = await supabase
@@ -23,26 +34,39 @@ export default defineEventHandler(async (event) => {
       .single()
     
     if (memberError || !groupMember) {
-      // Member not found, but we can still save the message
-      console.warn('Group member not found for deviceId:', deviceId)
+      console.error('Group member not found for deviceId:', deviceId, memberError)
+      throw createError({
+        statusCode: 404,
+        message: 'Člen skupiny nebyl nalezen'
+      })
     }
     
-    // Save message to database
+    const metadataPayload: Record<string, any> = {
+      ...(metadata || {})
+    }
+    
+    if (goalIndex !== undefined) {
+      metadataPayload.goalIndex = goalIndex
+    }
+    
+    if (progressIncrease !== undefined) {
+      metadataPayload.progressIncrease = progressIncrease
+    }
+    
     const { data: message, error: insertError } = await supabase
       .from('messages')
       .insert({
         content: content.trim(),
         group_id: groupId,
+        group_member_id: groupMember.id,
         student_id: null, // Students without user accounts
-        is_relevant: isRelevant || false,
-        metadata: metadata || {
-          goalIndex,
-          progressIncrease,
-          deviceId,
-          timestamp: new Date().toISOString()
-        }
+        role: normalizedRole,
+        is_relevant: typeof isRelevant === 'boolean' ? isRelevant : null,
+        metadata: Object.keys(metadataPayload).length > 0
+          ? metadataPayload
+          : null
       } as any)
-      .select()
+      .select('id, content, role, is_relevant, metadata, created_at')
       .single()
     
     if (insertError) {
@@ -55,7 +79,7 @@ export default defineEventHandler(async (event) => {
     
     return {
       success: true,
-      messageId: message.id
+      message
     }
   } catch (error: any) {
     console.error('Error saving message:', error)

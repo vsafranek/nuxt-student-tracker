@@ -62,20 +62,75 @@ export default defineEventHandler(async (event) => {
           .select('id', { count: 'exact', head: true })
           .eq('group_id', group.id)
         
-        // Průměrný pokrok
-        const { data: progressData } = await supabase
-          .from('student_progress')
-          .select('progress')
+        // Načíst goals pro výpočet procentuálního pokroku
+        const { data: goals } = await supabase
+          .from('goals')
+          .select('id, type, target_count')
           .eq('group_id', group.id)
         
-        const averageProgress = progressData && progressData.length > 0
-          ? Math.round(progressData.reduce((sum: number, p: any) => sum + (p.progress || 0), 0) / progressData.length)
-          : 0
+        const goalMeta = new Map<string, { type: string; targetCount: number }>()
+        if (goals) {
+          goals.forEach((goal: any) => {
+            goalMeta.set(goal.id, {
+              type: goal.type,
+              targetCount: goal.target_count || 0
+            })
+          })
+        }
+        
+        // Načíst progress data
+        const { data: progressRows } = await supabase
+          .from('student_progress')
+          .select('group_member_id, goal_id, progress, completed')
+          .eq('group_id', group.id)
+        
+        // Vypočítat procentuální pokrok pro každého studenta
+        const progressMap = new Map<string, number[]>()
+        ;(progressRows || []).forEach((row: any) => {
+          if (!row.group_member_id || !row.goal_id) return
+          const goal = goalMeta.get(row.goal_id)
+          if (!goal) return
+          
+          let percentage = 0
+          if (goal.type === 'percentage' && goal.targetCount) {
+            const rawPercentage = Math.round((row.progress || 0) / goal.targetCount * 100)
+            if (rawPercentage === 0) percentage = 0
+            else if (rawPercentage >= 100 || row.completed) percentage = 100
+            else if (rawPercentage >= 66) percentage = 66
+            else if (rawPercentage >= 33) percentage = 33
+            else percentage = 33
+          } else if (goal.type === 'boolean') {
+            percentage = row.completed ? 100 : 0
+          }
+          
+          if (!progressMap.has(row.group_member_id)) {
+            progressMap.set(row.group_member_id, [])
+          }
+          progressMap.get(row.group_member_id)!.push(percentage)
+        })
+        
+        // Vypočítat průměrný pokrok skupiny
+        let averageProgress = 0
+        if (progressMap.size > 0) {
+          const studentProgresses: number[] = []
+          progressMap.forEach((percentages) => {
+            const studentProgress = percentages.length
+              ? Math.round(percentages.reduce((sum, value) => sum + value, 0) / percentages.length)
+              : 0
+            studentProgresses.push(studentProgress)
+          })
+          
+          if (studentProgresses.length > 0) {
+            averageProgress = Math.round(
+              studentProgresses.reduce((sum, value) => sum + value, 0) / studentProgresses.length
+            )
+          }
+        }
         
         // Počet studentů potřebujících pomoc
         const { count: helpNeeded } = await supabase
-          .from('student_progress')
-          .select('*', { count: 'exact', head: true })
+          .from('group_members')
+          .select('id', { count: 'exact', head: true })
           .eq('group_id', group.id)
           .eq('needs_help', true)
         

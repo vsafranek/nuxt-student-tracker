@@ -33,6 +33,7 @@ export const studentProgress = pgTable('student_progress', {
   studentId: uuid('student_id').references(() => users.id),
   groupId: uuid('group_id').references(() => groups.id),
   goalId: uuid('goal_id').references(() => goals.id),
+  groupMemberId: uuid('group_member_id').references(() => groupMembers.id),
   progress: integer('progress').default(0),
   completed: boolean('completed').default(false),
   needsHelp: boolean('needs_help').default(false),
@@ -43,8 +44,10 @@ export const messages = pgTable('messages', {
   id: uuid('id').primaryKey().defaultRandom(),
   studentId: uuid('student_id').references(() => users.id),
   groupId: uuid('group_id').references(() => groups.id),
+  groupMemberId: uuid('group_member_id').references(() => groupMembers.id),
   content: text('content').notNull(),
   isRelevant: boolean('is_relevant').default(false),
+  role: text('role').notNull().default('assistant'),
   metadata: jsonb('metadata'), // pro uložení AI analýzy
   createdAt: timestamp('created_at').defaultNow()
 })
@@ -54,5 +57,14 @@ export const groupMembers = pgTable('group_members', {
   deviceId: text('device_id').notNull(), // Unique device identifier from localStorage
   groupId: uuid('group_id').references(() => groups.id).notNull(),
   nickname: text('nickname').notNull(),
-  joinedAt: timestamp('joined_at').defaultNow()
+  needsHelp: boolean('needs_help').default(false),
+  helpRequestedAt: timestamp('help_requested_at'),
+  lastActiveAt: timestamp('last_active_at').defaultNow(),
+  joinedAt: timestamp('joined_at').defaultNow(),
+  lastMessageContent: text('last_message_content'),
+  lastMessageIsRelevant: boolean('last_message_is_relevant'),
+  lastMessageGoalIndex: integer('last_message_goal_index'),
+  lastMessageProgress: integer('last_message_progress'),
+  lastMessageReason: text('last_message_reason'),
+  lastMessageAt: timestamp('last_message_at')
 })

@@ -69,6 +69,121 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.group_members": {
+      "name": "group_members",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nickname": {
+          "name": "nickname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "needs_help": {
+          "name": "needs_help",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "false"
+        },
+        "help_requested_at": {
+          "name": "help_requested_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_active_at": {
+          "name": "last_active_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "joined_at": {
+          "name": "joined_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "last_message_content": {
+          "name": "last_message_content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_message_is_relevant": {
+          "name": "last_message_is_relevant",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_message_goal_index": {
+          "name": "last_message_goal_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_message_progress": {
+          "name": "last_message_progress",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_message_reason": {
+          "name": "last_message_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_message_at": {
+          "name": "last_message_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "group_members_group_id_groups_id_fk": {
+          "name": "group_members_group_id_groups_id_fk",
+          "tableFrom": "group_members",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.groups": {
       "name": "groups",
       "schema": "",
@@ -170,6 +285,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "group_member_id": {
+          "name": "group_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "content": {
           "name": "content",
           "type": "text",
@@ -182,6 +303,13 @@
           "primaryKey": false,
           "notNull": false,
           "default": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'assistant'::text"
         },
         "metadata": {
           "name": "metadata",
@@ -218,6 +346,19 @@
           "tableTo": "groups",
           "columnsFrom": [
             "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "messages_group_member_id_group_members_id_fk": {
+          "name": "messages_group_member_id_group_members_id_fk",
+          "tableFrom": "messages",
+          "tableTo": "group_members",
+          "columnsFrom": [
+            "group_member_id"
           ],
           "columnsTo": [
             "id"
@@ -275,6 +416,12 @@
           "notNull": false,
           "default": false
         },
+        "group_member_id": {
+          "name": "group_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "needs_help": {
           "name": "needs_help",
           "type": "boolean",
@@ -324,6 +471,19 @@
           "tableTo": "goals",
           "columnsFrom": [
             "goal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "student_progress_group_member_id_group_members_id_fk": {
+          "name": "student_progress_group_member_id_group_members_id_fk",
+          "tableFrom": "student_progress",
+          "tableTo": "group_members",
+          "columnsFrom": [
+            "group_member_id"
           ],
           "columnsTo": [
             "id"

@@ -15,6 +15,41 @@
       "when": 1763574767800,
       "tag": "0001_assignment_mode",
       "breakpoints": false
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1763574768800,
+      "tag": "0002_group_members_help",
+      "breakpoints": false
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1763574769800,
+      "tag": "0003_group_members_last_active",
+      "breakpoints": false
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1763574770800,
+      "tag": "0004_student_progress_member",
+      "breakpoints": false
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1763576000000,
+      "tag": "0005_messages_member_role",
+      "breakpoints": false
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1763577000000,
+      "tag": "0006_group_members_validation",
+      "breakpoints": false
     }
   ]
 }

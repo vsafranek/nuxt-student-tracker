@@ -19,15 +19,47 @@
               <p v-if="group?.description" class="text-sm text-gray-500 mt-1">{{ group.description }}</p>
             </div>
           </div>
-          <button
-            @click="showQRCode"
-            class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-            </svg>
-            QR kód
-          </button>
+          <div class="flex items-center gap-3">
+            <!-- Realtime Status Badge -->
+            <div
+              class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              :class="realtimeStatus === 'connected' 
+                ? 'bg-green-100 text-green-800' 
+                : realtimeStatus === 'connecting' 
+                ? 'bg-yellow-100 text-yellow-800' 
+                : 'bg-gray-100 text-gray-600'"
+              :title="realtimeStatus === 'connected' 
+                ? 'Realtime aktualizace fungují' 
+                : realtimeStatus === 'connecting' 
+                ? 'Připojování k realtime...' 
+                : 'Realtime nefunguje - používá se fallback refresh'"
+            >
+              <div
+                class="w-2 h-2 rounded-full"
+                :class="realtimeStatus === 'connected' 
+                  ? 'bg-green-500 animate-pulse' 
+                  : realtimeStatus === 'connecting' 
+                  ? 'bg-yellow-500' 
+                  : 'bg-gray-400'"
+              ></div>
+              <span>
+                {{ realtimeStatus === 'connected' 
+                  ? 'Realtime' 
+                  : realtimeStatus === 'connecting' 
+                  ? 'Připojování...' 
+                  : 'Offline' }}
+              </span>
+            </div>
+            <button
+              @click="showQRCode"
+              class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+              </svg>
+              QR kód
+            </button>
+          </div>
         </div>
       </div>
     </header>
@@ -135,10 +167,39 @@
                     <p class="text-sm text-gray-500">Připojil se {{ formatDate(student.joinedAt) }}</p>
                   </div>
                 </div>
-                <div class="flex items-center gap-4">
-                  <span class="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                    Aktivní
+                <div class="flex items-center gap-4 flex-wrap">
+                  <div class="w-64">
+                    <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+                      <span>Pokrok</span>
+                      <span class="font-semibold text-gray-900">{{ student.progressPercentage ?? 0 }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                      <div
+                        class="h-full rounded-full transition-all duration-300"
+                        :class="(student.progressPercentage ?? 0) >= 100 ? 'bg-green-500' : 'bg-blue-500'"
+                        :style="{ width: `${student.progressPercentage ?? 0}%` }"
+                      ></div>
+                    </div>
+                  </div>
+                  <span
+                    class="px-3 py-1 text-xs font-medium rounded-full"
+                    :class="getActivityBadgeClass(student)"
+                  >
+                    {{ getActivityLabel(student) }}
                   </span>
+                  <span
+                    v-if="student.needsHelp"
+                    class="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 flex items-center gap-1"
+                  >
+                    Potřebuje pomoc • {{ formatHelpDuration(student.helpRequestedAt) }}
+                  </span>
+                  <button
+                    v-if="student.needsHelp"
+                    @click.stop="resolveHelp(student.id)"
+                    class="text-sm text-red-600 hover:text-red-700 font-medium"
+                  >
+                    Označit jako vyřešené
+                  </button>
                 </div>
               </div>
             </div>
@@ -211,6 +272,7 @@
 </template>
 
 <script setup lang="ts">
+import type { RealtimeChannel } from '@supabase/supabase-js'
 interface Group {
   id: string
   name: string
@@ -224,6 +286,16 @@ interface Student {
   nickname: string
   deviceId: string
   joinedAt: string
+  progressPercentage?: number
+  needsHelp?: boolean
+  helpRequestedAt?: string | null
+  lastActiveAt?: string | null
+  lastMessageContent?: string | null
+  lastMessageIsRelevant?: boolean | null
+  lastMessageGoalIndex?: number | null
+  lastMessageProgress?: number | null
+  lastMessageReason?: string | null
+  lastMessageAt?: string | null
 }
 
 definePageMeta({
@@ -232,6 +304,7 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
+const supabase = useSupabaseClient()
 const groupId = route.params.id as string
 
 const group = ref<Group | null>(null)
@@ -242,6 +315,15 @@ const showQRModal = ref(false)
 const averageProgress = ref(0)
 const helpNeeded = ref(0)
 
+const ONLINE_THRESHOLD_MS = 60 * 1000
+const FALLBACK_REFRESH_INTERVAL_MS = 30 * 1000 // Fallback refresh every 30 seconds if realtime doesn't work
+
+let realtimeChannel: RealtimeChannel | null = null
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+let fallbackRefreshTimer: ReturnType<typeof setInterval> | null = null
+let lastRealtimeEvent = ref<number | null>(null)
+const realtimeStatus = ref<'connected' | 'connecting' | 'disconnected'>('connecting')
+
 // Load group details
 const loadGroupDetails = async () => {
   isLoading.value = true
@@ -251,6 +333,8 @@ const loadGroupDetails = async () => {
       group: Group
       students: Student[]
       studentCount: number
+      averageProgress?: number
+      helpNeeded?: number
     }>(`/api/groups/${groupId}/details`)
     
     if (response.success) {
@@ -258,9 +342,12 @@ const loadGroupDetails = async () => {
       students.value = response.students
       studentCount.value = response.studentCount
       
-      // TODO: Load progress stats if needed
-      averageProgress.value = 0
-      helpNeeded.value = 0
+      averageProgress.value = response.averageProgress ?? 0
+      if (typeof response.helpNeeded === 'number') {
+        helpNeeded.value = response.helpNeeded
+      } else {
+        updateHelpStats()
+      }
     }
   } catch (error: any) {
     console.error('Error loading group details:', error)
@@ -287,6 +374,120 @@ const copyJoinLink = () => {
   alert('Odkaz zkopírován do schránky!')
 }
 
+const updateHelpStats = () => {
+  helpNeeded.value = students.value.filter(student => student.needsHelp).length
+}
+
+const resolveHelp = async (studentId: string) => {
+  try {
+    await $fetch('/api/help/status', {
+      method: 'POST',
+      body: {
+        groupId,
+        memberId: studentId,
+        needsHelp: false
+      }
+    })
+    
+    const student = students.value.find(student => student.id === studentId)
+    if (student) {
+      student.needsHelp = false
+      student.helpRequestedAt = null
+    }
+    updateHelpStats()
+  } catch (error) {
+    console.error('Error resolving help:', error)
+  }
+}
+
+const formatHelpDuration = (dateString?: string | null) => {
+  if (!dateString) return ''
+  const diffMs = Date.now() - new Date(dateString).getTime()
+  if (diffMs < 60000) {
+    return 'méně než 1 min'
+  }
+  const minutes = Math.floor(diffMs / 60000)
+  if (minutes < 60) {
+    return `${minutes} min`
+  }
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  return remainingMinutes
+    ? `${hours} h ${remainingMinutes} min`
+    : `${hours} h`
+}
+
+// Reactive timestamp that updates every second to trigger online status recalculation
+const currentTime = ref(Date.now())
+let timeUpdateInterval: ReturnType<typeof setInterval> | null = null
+
+// Computed function that Vue will track reactively
+const isStudentOnline = (student: Student) => {
+  // Access currentTime to make this reactive
+  const _ = currentTime.value // Force dependency on currentTime
+  
+  if (!student.lastActiveAt) {
+    return false
+  }
+  
+  try {
+    // Parse the date - handle both ISO strings with and without timezone
+    let lastActive: number
+    const dateStr = student.lastActiveAt
+    
+    // If the string doesn't end with Z or timezone, assume it's UTC
+    if (typeof dateStr === 'string' && !dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
+      // Add Z to make it UTC if it's not already there
+      lastActive = new Date(dateStr + 'Z').getTime()
+    } else {
+      lastActive = new Date(dateStr).getTime()
+    }
+    
+    const now = Date.now()
+    const diff = now - lastActive
+    
+    // Check if the date is valid
+    if (isNaN(lastActive)) {
+      console.warn(`Invalid lastActiveAt for ${student.nickname}:`, dateStr)
+      return false
+    }
+    
+    // Log for debugging (only occasionally to avoid spam)
+    if (Math.random() < 0.05) { // 5% chance to log
+      console.log(`isStudentOnline check for ${student.nickname}:`, {
+        lastActiveAt: dateStr,
+        lastActiveTimestamp: lastActive,
+        now,
+        diff,
+        diffSeconds: Math.round(diff / 1000),
+        threshold: ONLINE_THRESHOLD_MS,
+        isOnline: diff < ONLINE_THRESHOLD_MS
+      })
+    }
+    
+    return diff < ONLINE_THRESHOLD_MS
+  } catch (error) {
+    console.error('Error parsing lastActiveAt:', student.lastActiveAt, error)
+    return false
+  }
+}
+
+const getActivityLabel = (student: Student) => {
+  const online = isStudentOnline(student)
+  if (online) {
+    return student.needsHelp ? 'Online • čeká na pomoc' : 'Online • pracuje'
+  }
+  return 'Offline'
+}
+
+const getActivityBadgeClass = (student: Student) => {
+  const online = isStudentOnline(student)
+  if (online) {
+    return student.needsHelp ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+  }
+  return 'bg-gray-200 text-gray-700'
+}
+
 const formatDate = (dateString: string | undefined) => {
   if (!dateString) return ''
   const date = new Date(dateString)
@@ -299,8 +500,179 @@ const formatDate = (dateString: string | undefined) => {
   })
 }
 
+const scheduleRefresh = () => {
+  if (refreshTimer) return
+  refreshTimer = setTimeout(async () => {
+    await loadGroupDetails()
+    refreshTimer = null
+  }, 800)
+}
+
+const subscribeToRealtime = () => {
+  if (!supabase) return
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+    realtimeChannel = null
+  }
+  
+  // Set status to connecting when starting subscription
+  realtimeStatus.value = 'connecting'
+
+  realtimeChannel = supabase
+    .channel(`teacher-monitor-${groupId}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'group_members',
+      filter: `group_id=eq.${groupId}`
+    }, payload => {
+      console.log('Realtime UPDATE event for group_members:', payload)
+      lastRealtimeEvent.value = Date.now() // Track when we last received a realtime event
+      // Update status to connected if we receive events
+      if (realtimeStatus.value !== 'connected') {
+        realtimeStatus.value = 'connected'
+      }
+      const updated = payload.new as any
+      if (!updated?.id) return
+      const studentIndex = students.value.findIndex(student => student.id === updated.id)
+      if (studentIndex !== -1) {
+        const student = students.value[studentIndex]
+        // Update all fields reactively - use Object.assign to ensure Vue reactivity
+        if (updated.needs_help !== undefined) {
+          student.needsHelp = updated.needs_help
+        }
+        if (updated.help_requested_at !== undefined) {
+          student.helpRequestedAt = updated.help_requested_at
+        }
+        if (updated.last_active_at !== undefined) {
+          // Ensure the date is properly formatted
+          let lastActiveAtValue = updated.last_active_at
+          
+          // If the string doesn't have timezone info, assume it's UTC and add Z
+          if (typeof lastActiveAtValue === 'string' && 
+              !lastActiveAtValue.endsWith('Z') && 
+              !lastActiveAtValue.includes('+') && 
+              !lastActiveAtValue.match(/[+-]\d{2}:\d{2}$/)) {
+            // Add Z to make it UTC
+            lastActiveAtValue = lastActiveAtValue + 'Z'
+          }
+          
+          // Force reactivity by creating new object reference
+          students.value[studentIndex] = {
+            ...student,
+            lastActiveAt: lastActiveAtValue
+          }
+          
+          const updatedStudent = students.value[studentIndex]
+          const isOnline = isStudentOnline(updatedStudent)
+          const now = Date.now()
+          const lastActive = new Date(lastActiveAtValue).getTime()
+          const diff = now - lastActive
+          
+          console.log(`Updated lastActiveAt for student ${student.nickname}:`, {
+            originalValue: updated.last_active_at,
+            normalizedValue: lastActiveAtValue,
+            lastActiveTimestamp: lastActive,
+            now,
+            diffMs: diff,
+            diffSeconds: Math.round(diff / 1000),
+            thresholdMs: ONLINE_THRESHOLD_MS,
+            isOnline
+          })
+        }
+        if (updated.last_message_content !== undefined) {
+          student.lastMessageContent = updated.last_message_content
+        }
+        if (updated.last_message_is_relevant !== undefined) {
+          student.lastMessageIsRelevant = updated.last_message_is_relevant
+        }
+        if (updated.last_message_goal_index !== undefined) {
+          student.lastMessageGoalIndex = updated.last_message_goal_index
+        }
+        if (updated.last_message_progress !== undefined) {
+          student.lastMessageProgress = updated.last_message_progress
+        }
+        if (updated.last_message_reason !== undefined) {
+          student.lastMessageReason = updated.last_message_reason
+        }
+        if (updated.last_message_at !== undefined) {
+          student.lastMessageAt = updated.last_message_at
+        }
+        updateHelpStats()
+      } else {
+        scheduleRefresh()
+      }
+    })
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'student_progress',
+      filter: `group_id=eq.${groupId}`
+    }, () => {
+      scheduleRefresh()
+    })
+    .subscribe((status) => {
+      console.log('Realtime subscription status:', status)
+      if (status === 'SUBSCRIBED') {
+        console.log('Successfully subscribed to realtime updates')
+        realtimeStatus.value = 'connected'
+        lastRealtimeEvent.value = Date.now()
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('Realtime channel error - will use fallback refresh')
+        realtimeStatus.value = 'disconnected'
+      } else if (status === 'TIMED_OUT') {
+        console.warn('Realtime subscription timed out - will use fallback refresh')
+        realtimeStatus.value = 'disconnected'
+      } else if (status === 'CLOSED') {
+        console.warn('Realtime subscription closed - will use fallback refresh')
+        realtimeStatus.value = 'disconnected'
+      } else if (status === 'JOINED') {
+        realtimeStatus.value = 'connecting'
+      }
+    })
+}
+
 onMounted(() => {
   loadGroupDetails()
+  subscribeToRealtime()
+  
+  // Update currentTime every second to trigger reactivity for online status
+  timeUpdateInterval = setInterval(() => {
+    currentTime.value = Date.now()
+  }, 1000)
+  
+  // Fallback: If realtime doesn't work, refresh periodically
+  // Check if we received realtime events in the last minute
+  fallbackRefreshTimer = setInterval(() => {
+    const now = Date.now()
+    // If we haven't received a realtime event in the last 2 minutes, use fallback
+    if (lastRealtimeEvent.value === null || (now - lastRealtimeEvent.value) > 2 * 60 * 1000) {
+      console.log('Realtime not working, using fallback refresh')
+      if (realtimeStatus.value === 'connected') {
+        realtimeStatus.value = 'disconnected'
+      }
+      loadGroupDetails()
+    }
+  }, FALLBACK_REFRESH_INTERVAL_MS)
+})
+
+onUnmounted(() => {
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+    realtimeChannel = null
+  }
+  if (refreshTimer) {
+    clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
+  if (timeUpdateInterval) {
+    clearInterval(timeUpdateInterval)
+    timeUpdateInterval = null
+  }
+  if (fallbackRefreshTimer) {
+    clearInterval(fallbackRefreshTimer)
+    fallbackRefreshTimer = null
+  }
 })
 </script>
 

@@ -46,18 +46,21 @@ export default defineEventHandler(async (event) => {
     }
     
     if (existingMember) {
+      const existingMemberData = existingMember as any
       // Device already joined - return existing info
       return {
         success: true,
         message: 'Zařízení je již zaregistrované v této skupině',
         member: {
-          nickname: existingMember.nickname
+          nickname: existingMemberData.nickname
         }
       }
     }
     
     // Create new membership
-    const { data: newMember, error: insertError } = await supabase
+    const supabaseClient = supabase as any
+    
+    const { data: newMember, error: insertError } = await supabaseClient
       .from('group_members')
       .insert({
         device_id: deviceId,
@@ -77,10 +80,12 @@ export default defineEventHandler(async (event) => {
     
     // Initialize progress for all goals in the group
     // Get all goals for this group
-    const { data: goals, error: goalsError } = await supabase
+    const { data: goals, error: goalsError } = await supabaseClient
       .from('goals')
       .select('id')
       .eq('group_id', groupId)
+    
+    const memberData = newMember as any
     
     if (goalsError) {
       console.error('Error fetching goals for progress initialization:', goalsError)
@@ -91,25 +96,28 @@ export default defineEventHandler(async (event) => {
       // For students without user accounts, we'll track progress per group_member
       // For now, we'll check if progress exists and create if it doesn't
       
-      for (const goal of goals) {
-        // Check if progress already exists for this goal
-        const { data: existingProgress } = await supabase
+      for (const goal of goals as any[]) {
+        const { data: existingProgress, error: existingProgressError } = await supabaseClient
           .from('student_progress')
           .select('id')
           .eq('group_id', groupId)
           .eq('goal_id', goal.id)
-          .is('student_id', null)
+          .eq('group_member_id', memberData.id)
           .limit(1)
-          .single()
+          .maybeSingle()
         
-        // Only create if it doesn't exist
+        if (existingProgressError && existingProgressError.code !== 'PGRST116') {
+          console.error('Error checking existing progress:', existingProgressError)
+          continue
+        }
+        
         if (!existingProgress) {
-          const { error: progressError } = await supabase
+          const { error: progressError } = await supabaseClient
             .from('student_progress')
             .insert({
               group_id: groupId,
               goal_id: goal.id,
-              student_id: null, // null for students without user accounts
+              group_member_id: memberData.id,
               progress: 0,
               completed: false,
               needs_help: false
@@ -117,20 +125,19 @@ export default defineEventHandler(async (event) => {
           
           if (progressError) {
             console.error(`Error creating progress for goal ${goal.id}:`, progressError)
-            // Don't fail the join if progress creation fails, just log it
           }
         }
       }
       
-      console.log(`Checked/initialized progress for ${goals.length} goals for new member`)
+      console.log(`Initialized progress for ${goals.length} goals for new member`)
     }
     
     return {
       success: true,
       message: 'Úspěšně jste se připojili ke skupině',
       member: {
-        nickname: newMember.nickname,
-        joinedAt: newMember.joined_at
+        nickname: memberData.nickname,
+        joinedAt: memberData.joined_at
       }
     }
   } catch (error: any) {

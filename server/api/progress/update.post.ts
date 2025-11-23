@@ -14,6 +14,23 @@ export default defineEventHandler(async (event) => {
       })
     }
     
+    // Najít člena skupiny podle zařízení
+    const { data: groupMember, error: memberError } = await supabase
+      .from('group_members')
+      .select('id')
+      .eq('group_id', groupId)
+      .eq('device_id', deviceId)
+      .single()
+    
+    if (memberError || !groupMember) {
+      throw createError({
+        statusCode: 404,
+        message: 'Student ve skupině nenalezen'
+      })
+    }
+    
+    const targetStudentId = groupMember.id
+    
     // Get goals for the group
     const { data: goals, error: goalsError } = await supabase
       .from('goals')
@@ -21,20 +38,34 @@ export default defineEventHandler(async (event) => {
       .eq('group_id', groupId)
       .order('created_at', { ascending: true })
     
-    if (goalsError || !goals || goals.length === 0) {
+    if (goalsError) {
+      console.error('Error fetching goals:', goalsError)
+      throw createError({
+        statusCode: 500,
+        message: 'Chyba při načítání cílů skupiny'
+      })
+    }
+    
+    if (!goals || goals.length === 0) {
+      console.warn(`No goals found for group ${groupId}`)
       throw createError({
         statusCode: 404,
         message: 'Cíle skupiny nenalezeny'
       })
     }
     
+    console.log(`Found ${goals.length} goals for group ${groupId}, goalIndex: ${goalIndex}`)
+    
     const goal = goals[goalIndex]
     if (!goal) {
+      console.error(`Goal at index ${goalIndex} not found. Available goals:`, goals.map((g: any, i: number) => `${i}: ${g.id}`))
       throw createError({
         statusCode: 404,
-        message: 'Cíl nenalezen'
+        message: `Cíl na indexu ${goalIndex} nenalezen`
       })
     }
+    
+    console.log(`Updating progress for goal ${goal.id} (type: ${goal.type}, target: ${goal.target_count})`)
     
     // Get current progress
     const { data: currentProgress, error: progressError } = await supabase
@@ -42,7 +73,7 @@ export default defineEventHandler(async (event) => {
       .select('id, progress, completed')
       .eq('group_id', groupId)
       .eq('goal_id', goal.id)
-      .is('student_id', null)
+      .eq('group_member_id', targetStudentId)
       .limit(1)
       .single()
     
@@ -83,6 +114,7 @@ export default defineEventHandler(async (event) => {
     // Update or create progress entry
     if (currentProgress) {
       // Update existing
+      console.log(`Updating existing progress record ${currentProgress.id}: progress=${newProgress}, completed=${newCompleted}`)
       const { error: updateError } = await supabase
         .from('student_progress')
         .update({
@@ -93,30 +125,35 @@ export default defineEventHandler(async (event) => {
         .eq('id', currentProgress.id)
       
       if (updateError) {
+        console.error('Error updating progress:', updateError)
         throw createError({
           statusCode: 500,
           message: 'Chyba při aktualizaci progress'
         })
       }
+      console.log('Progress updated successfully')
     } else {
       // Create new
+      console.log(`Creating new progress record: group_id=${groupId}, goal_id=${goal.id}, group_member_id=${targetStudentId}, progress=${newProgress}, completed=${newCompleted}`)
       const { error: insertError } = await supabase
         .from('student_progress')
         .insert({
           group_id: groupId,
           goal_id: goal.id,
-          student_id: null,
+          group_member_id: targetStudentId,
           progress: newProgress,
           completed: newCompleted,
           needs_help: false
         } as any)
       
       if (insertError) {
+        console.error('Error creating progress:', insertError)
         throw createError({
           statusCode: 500,
           message: 'Chyba při vytváření progress záznamu'
         })
       }
+      console.log('Progress created successfully')
     }
     
     return {

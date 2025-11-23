@@ -44,7 +44,7 @@
       <TransitionGroup name="message" tag="div" class="space-y-4">
         <div
           v-for="(message, index) in displayMessages"
-          :key="`${message.timestamp?.getTime() || index}-${message.content.slice(0, 20)}`"
+          :key="message.id || `${message.timestamp?.getTime() || index}-${message.content.slice(0, 20)}`"
           :class="[
             'flex flex-col',
             message.role === 'user' ? 'items-end' : 'items-start'
@@ -181,7 +181,17 @@ const props = withDefaults(defineProps<Props>(), {
   assignmentMode: 'uniform'
 })
 
-const { messages, isLoading, error, sendMessage, clearMessages, addAssistantMessage } = useChat({
+const {
+  messages,
+  isLoading,
+  error,
+  sendMessage,
+  clearMessages,
+  addAssistantMessagePersisted,
+  loadHistory,
+  setGoalsContext,
+  setGroupDescriptionContext
+} = useChat({
   userId: props.userId,
   groupId: props.groupId,
   systemPrompt: props.systemPrompt,
@@ -194,6 +204,7 @@ const inputRef = ref<HTMLTextAreaElement | null>(null)
 const messagesContainer = ref<HTMLDivElement | null>(null)
 const hasShownWelcome = ref(false)
 const isGeneratingWelcome = ref(false)
+const canShowWelcome = ref(false)
 let welcomeTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Filter out system messages for display
@@ -304,14 +315,14 @@ const showWelcome = async () => {
 
     const welcomeMessage = await generateWelcomeMessage()
     if (welcomeMessage && welcomeMessage.trim()) {
-      addAssistantMessage(welcomeMessage)
+      await addAssistantMessagePersisted(welcomeMessage)
       hasShownWelcome.value = true
       scrollToBottom()
     }
   } catch (error) {
     console.error('Error generating welcome message:', error)
     const basicWelcome = `Ahoj ${props.studentName || 'studente'}! 👋\n\nVítejte ve skupině "${props.groupName || 'skupině'}". Jsem AI asistent a jsem zde, abych vám pomohl s vašimi úkoly.\n\n**Vaše zadání:**\nPracujte na úkolech ve skupině. Pomohu vám s jejich splněním.\n\nMůžete se mě zeptat na cokoliv. Jak mohu pomoci?`
-    addAssistantMessage(basicWelcome)
+    await addAssistantMessagePersisted(basicWelcome)
     hasShownWelcome.value = true
     scrollToBottom()
   } finally {
@@ -332,6 +343,30 @@ const scheduleWelcome = () => {
     welcomeTimeout = null
     await showWelcome()
   }, 300)
+}
+
+const initializeHistory = async () => {
+  if (!props.userId || !props.groupId) {
+    canShowWelcome.value = true
+    scheduleWelcome()
+    return
+  }
+
+  try {
+    const hasHistory = await loadHistory()
+    if (hasHistory) {
+      hasShownWelcome.value = true
+      scrollToBottom()
+    }
+    canShowWelcome.value = true
+    if (!hasHistory) {
+      scheduleWelcome()
+    }
+  } catch (error) {
+    console.error('Error initializing chat history:', error)
+    canShowWelcome.value = true
+    scheduleWelcome()
+  }
 }
 
 const handleSubmit = async () => {
@@ -359,7 +394,9 @@ const clearChat = () => {
   if (confirm('Opravdu chcete vymazat celou konverzaci?')) {
     clearMessages()
     inputMessage.value = ''
+    hasShownWelcome.value = false
     scrollToBottom()
+    scheduleWelcome()
   }
 }
 
@@ -394,15 +431,35 @@ watch(() => messages.value.length, () => {
 watch(
   [() => props.goals, () => props.groupDescription, () => props.groupName, () => props.studentName, () => props.assignmentMode],
   () => {
+    if (!canShowWelcome.value) {
+      return
+    }
     scheduleWelcome()
   },
   { deep: true, immediate: true }
 )
 
-onMounted(() => {
+watch(
+  () => props.goals,
+  (nextGoals) => {
+    setGoalsContext(nextGoals || [])
+  },
+  { deep: true, immediate: true }
+)
+
+watch(
+  () => props.groupDescription,
+  (nextDescription) => {
+    setGroupDescriptionContext(nextDescription || '')
+  },
+  { immediate: true }
+)
+
+onMounted(async () => {
   if (inputRef.value) {
     inputRef.value.focus()
   }
+  await initializeHistory()
 })
 
 onBeforeUnmount(() => {

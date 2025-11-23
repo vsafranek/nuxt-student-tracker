@@ -61,13 +61,78 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Format members data
-    const students = (members || []).map((member: any) => ({
-      id: member.id,
-      nickname: member.nickname,
-      deviceId: member.device_id,
-      joinedAt: member.joined_at
-    }))
+    const goalsQuery = await supabase
+      .from('goals')
+      .select('id, type, target_count')
+      .eq('group_id', groupId)
+    
+    const goalMeta = new Map<string, { type: string; targetCount: number }>()
+    if (!goalsQuery.error && goalsQuery.data) {
+      goalsQuery.data.forEach((goal: any) => {
+        goalMeta.set(goal.id, {
+          type: goal.type,
+          targetCount: goal.target_count || 0
+        })
+      })
+    }
+    
+    const { data: progressRows } = await supabase
+      .from('student_progress')
+      .select('group_member_id, goal_id, progress, completed')
+      .eq('group_id', groupId)
+    
+    const progressMap = new Map<string, number[]>()
+    ;(progressRows || []).forEach((row: any) => {
+      if (!row.group_member_id || !row.goal_id) return
+      const goal = goalMeta.get(row.goal_id)
+      if (!goal) return
+      
+      let percentage = 0
+      if (goal.type === 'percentage' && goal.targetCount) {
+        const rawPercentage = Math.round((row.progress || 0) / goal.targetCount * 100)
+        if (rawPercentage === 0) percentage = 0
+        else if (rawPercentage >= 100 || row.completed) percentage = 100
+        else if (rawPercentage >= 66) percentage = 66
+        else if (rawPercentage >= 33) percentage = 33
+        else percentage = 33
+      } else if (goal.type === 'boolean') {
+        percentage = row.completed ? 100 : 0
+      }
+      
+      if (!progressMap.has(row.group_member_id)) {
+        progressMap.set(row.group_member_id, [])
+      }
+      progressMap.get(row.group_member_id)!.push(percentage)
+    })
+    
+    const students = (members || []).map((member: any) => {
+      const percentages = progressMap.get(member.id) || []
+      const progressPercentage = percentages.length
+        ? Math.round(percentages.reduce((sum, value) => sum + value, 0) / percentages.length)
+        : 0
+      
+      return {
+        id: member.id,
+        nickname: member.nickname,
+        deviceId: member.device_id,
+        joinedAt: member.joined_at,
+        needsHelp: member.needs_help || false,
+        helpRequestedAt: member.help_requested_at,
+        lastActiveAt: member.last_active_at,
+        progressPercentage,
+        lastMessageContent: member.last_message_content,
+        lastMessageIsRelevant: member.last_message_is_relevant,
+        lastMessageGoalIndex: member.last_message_goal_index,
+        lastMessageProgress: member.last_message_progress,
+        lastMessageReason: member.last_message_reason,
+        lastMessageAt: member.last_message_at
+      }
+    })
+    
+    const helpNeededCount = students.filter(student => student.needsHelp).length
+    const averageProgress = students.length
+      ? Math.round(students.reduce((sum, student) => sum + (student.progressPercentage || 0), 0) / students.length)
+      : 0
     
     return {
       success: true,
@@ -80,7 +145,9 @@ export default defineEventHandler(async (event) => {
         createdAt: groupData.created_at
       },
       students,
-      studentCount: students.length
+      studentCount: students.length,
+      averageProgress,
+      helpNeeded: helpNeededCount
     }
   } catch (error: any) {
     console.error('Error fetching group details:', error)

@@ -79,6 +79,107 @@ export default defineEventHandler(async (event) => {
     
     const groupData = group as any
     
+    // Generate assignment and goals using LLM
+    try {
+      // Step 1: Generate assignment from group description
+      const requestUrl = getRequestURL(event)
+      const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`
+      
+      let generatedAssignment = body.description
+      try {
+        const assignmentResponse = await $fetch<{
+          success: boolean
+          assignment: string
+        }>(`${baseUrl}/api/chat/generate-assignment`, {
+          method: 'POST',
+          body: {
+            groupDescription: body.description,
+            goals: [], // No goals yet, we'll generate them
+            assignmentMode: assignmentMode,
+            groupId: groupId
+          }
+        })
+        
+        if (assignmentResponse.success && assignmentResponse.assignment) {
+          generatedAssignment = assignmentResponse.assignment
+        }
+      } catch (assignmentError) {
+        console.warn('Error generating assignment, using description:', assignmentError)
+      }
+      
+      // Step 2: Generate goals from assignment
+      const goalsResponse = await $fetch<{
+        success: boolean
+        goals: Array<{
+          title: string
+          type: 'boolean' | 'percentage'
+          targetCount?: number
+        }>
+      }>(`${baseUrl}/api/groups/generate-goals`, {
+        method: 'POST',
+        body: {
+          groupDescription: body.description,
+          assignment: generatedAssignment
+        }
+      })
+      
+      if (goalsResponse.success && goalsResponse.goals && goalsResponse.goals.length > 0) {
+        const goalsToInsert = goalsResponse.goals.map((goal: any) => ({
+          group_id: groupId,
+          title: goal.title.trim(),
+          type: goal.type || 'boolean',
+          target_count: goal.type === 'percentage' && goal.targetCount ? goal.targetCount : null
+        }))
+        
+        const { error: goalsError } = await supabase
+          .from('goals')
+          .insert(goalsToInsert as any)
+        
+        if (goalsError) {
+          console.error('Error creating generated goals:', goalsError)
+          // Fallback: create a default goal
+          await supabase
+            .from('goals')
+            .insert({
+              group_id: groupId,
+              title: body.description.trim() || 'Splnit úkol',
+              type: 'boolean',
+              target_count: null
+            } as any)
+        } else {
+          console.log(`Created ${goalsToInsert.length} generated goals for group ${groupId}`)
+        }
+      } else {
+        // Fallback: create a default goal
+        await supabase
+          .from('goals')
+          .insert({
+            group_id: groupId,
+            title: body.description.trim() || 'Splnit úkol',
+            type: 'boolean',
+            target_count: null
+          } as any)
+        console.log(`Created default goal for group ${groupId} (goals generation failed)`)
+      }
+    } catch (goalsError: any) {
+      console.error('Error generating goals:', goalsError)
+      // Fallback: create a default goal
+      try {
+        await supabase
+          .from('goals')
+          .insert({
+            group_id: groupId,
+            title: body.description.trim() || 'Splnit úkol',
+            type: 'boolean',
+            target_count: null
+          } as any)
+        console.log(`Created fallback goal for group ${groupId}`)
+      } catch (fallbackError) {
+        console.error('Error creating fallback goal:', fallbackError)
+        // Don't fail group creation if goals fail
+      }
+    }
+    
     return {
       success: true,
       group: {

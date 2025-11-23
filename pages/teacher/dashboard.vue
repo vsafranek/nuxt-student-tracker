@@ -562,6 +562,8 @@
       
       if (response.success) {
         groups.value = response.groups
+        // Subscribe to realtime after groups are loaded
+        subscribeToRealtime()
       }
     } catch (error) {
       console.error('Error loading groups:', error)
@@ -707,9 +709,70 @@
     return date.toLocaleDateString('cs-CZ', { day: 'numeric', month: 'long', year: 'numeric' })
   }
   
+  // Realtime subscriptions
+  let realtimeChannel: any = null
+
+  const subscribeToRealtime = () => {
+    if (!supabase || !user.value) return
+
+    // Unsubscribe from existing channel
+    if (realtimeChannel) {
+      supabase.removeChannel(realtimeChannel)
+      realtimeChannel = null
+    }
+
+    // Get all group IDs for filtering
+    const groupIds = groups.value.map(g => g.id)
+    if (groupIds.length === 0) return
+
+    // Subscribe to student_progress changes for all groups
+    // We'll listen to all changes and filter by group_id in the handler
+    realtimeChannel = supabase
+      .channel('dashboard-progress-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'student_progress'
+      }, (payload: any) => {
+        // Check if the change is for one of our groups
+        const changedGroupId = payload.new?.group_id || payload.old?.group_id
+        console.log('Dashboard: Realtime event for student_progress:', {
+          eventType: payload.eventType,
+          groupId: changedGroupId,
+          isOurGroup: changedGroupId && groupIds.includes(changedGroupId)
+        })
+        
+        if (changedGroupId && groupIds.includes(changedGroupId)) {
+          // When progress changes, reload groups to update average progress
+          console.log('Dashboard: Reloading groups due to progress change')
+          loadGroups()
+        }
+      })
+      .subscribe((status) => {
+        console.log('Dashboard: Realtime subscription status:', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('Dashboard: Successfully subscribed to student_progress updates')
+        }
+      })
+  }
+
   // Load data on mount
   onMounted(() => {
     loadGroups()
+  })
+
+  // Watch for groups changes to update subscriptions (when groups are added/removed)
+  watch(() => groups.value.length, () => {
+    // Re-subscribe when number of groups changes
+    subscribeToRealtime()
+  })
+
+  onUnmounted(() => {
+    // Clean up realtime subscription
+    if (realtimeChannel) {
+      supabase.removeChannel(realtimeChannel)
+      realtimeChannel = null
+    }
   })
   </script>
   

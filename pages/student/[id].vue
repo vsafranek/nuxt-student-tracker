@@ -19,12 +19,6 @@
         </div>
       </div>
 
-      <!-- Goals Display -->
-      <div v-if="goals.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Vaše cíle</h2>
-        <GoalsDisplay :goals="goals" />
-      </div>
-
       <!-- AI Chatbot -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" style="height: 600px;">
         <ChatBot 
@@ -69,6 +63,7 @@ interface StudentInfo {
 const route = useRoute()
 const router = useRouter()
 const groupId = route.params.id as string
+const HEARTBEAT_INTERVAL_MS = 30000
 
 interface Goal {
   id: string
@@ -84,6 +79,7 @@ const group = ref<Group | null>(null)
 const studentInfo = ref<StudentInfo | null>(null)
 const goals = ref<Goal[]>([])
 const isLoadingGoals = ref(false)
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null
 
 // Load student info from localStorage
 const loadStudentInfo = () => {
@@ -94,9 +90,60 @@ const loadStudentInfo = () => {
   
   if (groupData) {
     studentInfo.value = groupData
+    // Heartbeat will be started by watch() when studentInfo is set
   } else {
     // Not joined - redirect to join page
     router.push(`/join/${groupId}`)
+  }
+}
+
+const sendHeartbeat = async () => {
+  if (!studentInfo.value) {
+    console.log('Heartbeat: No studentInfo, skipping')
+    return
+  }
+  try {
+    console.log(`Heartbeat: Sending heartbeat for device ${studentInfo.value.deviceId} in group ${groupId}`)
+    const response = await $fetch<{ success: boolean; skipped?: boolean }>('/api/heartbeat/update', {
+      method: 'POST',
+      body: {
+        groupId,
+        deviceId: studentInfo.value.deviceId
+      }
+    })
+    
+    // If heartbeat was skipped (e.g., student not found), stop sending heartbeats
+    if (response.skipped) {
+      console.warn('Heartbeat skipped - student may not be in group anymore')
+      stopHeartbeat()
+    } else if (response.success) {
+      console.log('Heartbeat: Successfully sent')
+    }
+  } catch (error: any) {
+    // Only log as warning, not error - heartbeat failures are non-critical
+    if (error.statusCode !== 404) {
+      console.warn('Heartbeat update failed:', error.message || error)
+    }
+    // If 404 or other error, stop heartbeat to avoid spam
+    stopHeartbeat()
+  }
+}
+
+const startHeartbeat = () => {
+  if (!studentInfo.value) {
+    console.log('Heartbeat: Cannot start - no studentInfo')
+    return
+  }
+  console.log('Heartbeat: Starting heartbeat interval')
+  stopHeartbeat()
+  sendHeartbeat()
+  heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS)
+}
+
+const stopHeartbeat = () => {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer)
+    heartbeatTimer = null
   }
 }
 
@@ -202,11 +249,14 @@ onMounted(async () => {
   // Load goals after student info is available
   if (studentInfo.value) {
     await loadGoals()
+    // Start heartbeat if studentInfo is already loaded
+    startHeartbeat()
   } else {
     // Wait a bit and try again if studentInfo wasn't loaded yet
     setTimeout(async () => {
       if (studentInfo.value) {
         await loadGoals()
+        startHeartbeat()
       }
     }, 100)
   }
@@ -216,6 +266,9 @@ onMounted(async () => {
 watch(() => studentInfo.value, async (newVal) => {
   if (newVal && groupId) {
     await loadGoals()
+    startHeartbeat()
+  } else {
+    stopHeartbeat()
   }
 })
 
@@ -228,21 +281,23 @@ watch(() => group.value, (newGroup) => {
 })
 
 // Listen for progress updates to refresh goals
+const handleProgressUpdated = () => {
+  setTimeout(() => {
+    loadGoals()
+  }, 500)
+}
+
 onMounted(() => {
   if (typeof window !== 'undefined') {
-    window.addEventListener('progress-updated', () => {
-      // Refresh goals after progress update
-      setTimeout(() => {
-        loadGoals()
-      }, 500)
-    })
+    window.addEventListener('progress-updated', handleProgressUpdated)
   }
 })
 
 onUnmounted(() => {
   if (typeof window !== 'undefined') {
-    window.removeEventListener('progress-updated', () => {})
+    window.removeEventListener('progress-updated', handleProgressUpdated)
   }
+  stopHeartbeat()
 })
 </script>
 
