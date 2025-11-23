@@ -60,7 +60,7 @@
               message.isRelevant && message.role === 'user' && 'ring-2 ring-green-500 ring-offset-1 border-green-500'
             ]"
           >
-            <div class="whitespace-pre-wrap break-words">{{ message.content }}</div>
+            <MessageContent :content="message.content" />
             <div
               v-if="message.timestamp"
               :class="[
