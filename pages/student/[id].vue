@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Header -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
         <div class="flex items-center justify-between">
@@ -19,30 +19,36 @@
         </div>
       </div>
 
-      <!-- Goals Display -->
-      <div v-if="goals.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Vaše cíle</h2>
-        <GoalsDisplay :goals="goals" />
-      </div>
+      <!-- Main Content: Goals Sidebar + Chat -->
+      <div class="flex flex-col md:flex-row gap-6">
+        <!-- Goals Sidebar (left on desktop, top on mobile) -->
+        <div 
+          v-if="goals.length > 0" 
+          class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:w-80 md:shrink-0 md:sticky md:top-8 md:self-start md:max-h-[calc(100vh-8rem)] md:overflow-y-auto"
+        >
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">Vaše cíle</h2>
+          <GoalsDisplay :goals="goals" />
+        </div>
 
-      <!-- AI Chatbot -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" style="height: 600px;">
-        <ChatBot 
-          v-if="studentInfo && groupId && group"
-          :user-id="studentInfo.deviceId"
-          :group-id="groupId"
-          :system-prompt="systemPrompt"
-          :goals="goals"
-          :group-description="group.description"
-          :group-name="group.name"
-          :student-name="studentInfo.nickname"
-          :assignment-mode="group.assignmentMode || 'uniform'"
-          :height="'600px'"
-        />
-        <div v-else class="flex items-center justify-center h-full text-gray-500">
-          <div class="text-center">
-            <div class="loading-spinner w-8 h-8 mx-auto mb-4"></div>
-            <p>Načítání...</p>
+        <!-- AI Chatbot (right on desktop, bottom on mobile) -->
+        <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" :style="{ height: '600px' }">
+          <ChatBot 
+            v-if="studentInfo && groupId && group"
+            :user-id="studentInfo.deviceId"
+            :group-id="groupId"
+            :system-prompt="systemPrompt"
+            :goals="goals"
+            :group-description="group.description"
+            :group-name="group.name"
+            :student-name="studentInfo.nickname"
+            :assignment-mode="group.assignmentMode || 'uniform'"
+            :height="'600px'"
+          />
+          <div v-else class="flex items-center justify-center h-full text-gray-500">
+            <div class="text-center">
+              <div class="loading-spinner w-8 h-8 mx-auto mb-4"></div>
+              <p>Načítání...</p>
+            </div>
           </div>
         </div>
       </div>
