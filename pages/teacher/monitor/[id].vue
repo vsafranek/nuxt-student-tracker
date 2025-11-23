@@ -155,53 +155,78 @@
             <div
               v-for="(student, index) in students"
               :key="student.id"
-              class="px-6 py-4 hover:bg-gray-50 transition-colors"
+              class="border-b border-gray-200 last:border-b-0"
             >
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                  <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
-                    {{ index + 1 }}
-                  </div>
-                  <div>
-                    <p class="font-medium text-gray-900">{{ student.nickname }}</p>
-                    <p class="text-sm text-gray-500">Připojil se {{ formatDate(student.joinedAt) }}</p>
-                  </div>
-                </div>
-                <div class="flex items-center gap-4 flex-wrap">
-                  <div class="w-64">
-                    <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
-                      <span>Pokrok</span>
-                      <span class="font-semibold text-gray-900">{{ student.progressPercentage ?? 0 }}%</span>
+              <div class="px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-4">
+                    <button
+                      @click.stop="toggleStudentDetail(student.id)"
+                      type="button"
+                      class="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors cursor-pointer"
+                      :aria-expanded="expandedStudents.has(student.id)"
+                    >
+                      <svg 
+                        class="w-5 h-5 transition-transform duration-200"
+                        :class="{ 'rotate-90': expandedStudents.has(student.id) }"
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
+                      {{ index + 1 }}
                     </div>
-                    <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                      <div
-                        class="h-full rounded-full transition-all duration-300"
-                        :class="(student.progressPercentage ?? 0) >= 100 ? 'bg-green-500' : 'bg-blue-500'"
-                        :style="{ width: `${student.progressPercentage ?? 0}%` }"
-                      ></div>
+                    <div>
+                      <p class="font-medium text-gray-900">{{ student.nickname }}</p>
+                      <p class="text-sm text-gray-500">Připojil se {{ formatDate(student.joinedAt) }}</p>
                     </div>
                   </div>
-                  <span
-                    class="px-3 py-1 text-xs font-medium rounded-full"
-                    :class="getActivityBadgeClass(student)"
-                  >
-                    {{ getActivityLabel(student) }}
-                  </span>
-                  <span
-                    v-if="student.needsHelp && (student.progressPercentage ?? 0) < 100"
-                    class="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 flex items-center gap-1"
-                  >
-                    Potřebuje pomoc • {{ formatHelpDuration(student.helpRequestedAt) }}
-                  </span>
-                  <button
-                    v-if="student.needsHelp && (student.progressPercentage ?? 0) < 100"
-                    @click.stop="resolveHelp(student.id)"
-                    class="text-sm text-red-600 hover:text-red-700 font-medium"
-                  >
-                    Označit jako vyřešené
-                  </button>
+                  <div class="flex items-center gap-4 flex-wrap">
+                    <div class="w-64">
+                      <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+                        <span>Pokrok</span>
+                        <span class="font-semibold text-gray-900">{{ student.progressPercentage ?? 0 }}%</span>
+                      </div>
+                      <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <div
+                          class="h-full rounded-full transition-all duration-300"
+                          :class="(student.progressPercentage ?? 0) >= 100 ? 'bg-green-500' : 'bg-blue-500'"
+                          :style="{ width: `${student.progressPercentage ?? 0}%` }"
+                        ></div>
+                      </div>
+                    </div>
+                    <span
+                      class="px-3 py-1 text-xs font-medium rounded-full"
+                      :class="getActivityBadgeClass(student)"
+                    >
+                      {{ getActivityLabel(student) }}
+                    </span>
+                    <span
+                      v-if="student.needsHelp && (student.progressPercentage ?? 0) < 100"
+                      class="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 flex items-center gap-1"
+                    >
+                      Potřebuje pomoc • {{ formatHelpDuration(student.helpRequestedAt) }}
+                    </span>
+                    <button
+                      v-if="student.needsHelp && (student.progressPercentage ?? 0) < 100"
+                      @click.stop="resolveHelp(student.id)"
+                      class="text-sm text-red-600 hover:text-red-700 font-medium"
+                    >
+                      Označit jako vyřešené
+                    </button>
+                  </div>
                 </div>
               </div>
+              
+              <!-- Student Detail -->
+              <Transition name="slide-down">
+                <div v-if="expandedStudents.has(student.id)" class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                  <StudentDetail :student-id="student.id" :group-id="groupId" :key="student.id" />
+                </div>
+              </Transition>
             </div>
           </div>
         </div>
@@ -314,6 +339,7 @@ const isLoading = ref(true)
 const showQRModal = ref(false)
 const averageProgress = ref(0)
 const helpNeeded = ref(0)
+const expandedStudents = ref<Set<string>>(new Set())
 
 const ONLINE_THRESHOLD_MS = 60 * 1000
 const FALLBACK_REFRESH_INTERVAL_MS = 30 * 1000 // Fallback refresh every 30 seconds if realtime doesn't work
@@ -512,6 +538,16 @@ const getActivityBadgeClass = (student: Student) => {
     return student.needsHelp ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
   }
   return 'bg-gray-200 text-gray-700'
+}
+
+const toggleStudentDetail = (studentId: string) => {
+  if (expandedStudents.value.has(studentId)) {
+    expandedStudents.value.delete(studentId)
+  } else {
+    expandedStudents.value.add(studentId)
+  }
+  // Force reactivity
+  expandedStudents.value = new Set(expandedStudents.value)
 }
 
 const formatDate = (dateString: string | undefined) => {
@@ -722,6 +758,19 @@ onUnmounted(() => {
 
 .fade-enter-from,
 .fade-leave-to {
+  opacity: 0;
+}
+
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.3s ease;
+  max-height: 2000px;
+  overflow: hidden;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+  max-height: 0;
   opacity: 0;
 }
 </style>
