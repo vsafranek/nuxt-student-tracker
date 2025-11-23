@@ -19,6 +19,12 @@
         </div>
       </div>
 
+      <!-- Goals Display -->
+      <div v-if="goals.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Vaše cíle</h2>
+        <GoalsDisplay :goals="goals" />
+      </div>
+
       <!-- AI Chatbot -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" style="height: 600px;">
         <ChatBot 
