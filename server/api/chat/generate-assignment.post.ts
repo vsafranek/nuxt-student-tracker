@@ -132,12 +132,69 @@ export default defineEventHandler(async (event) => {
       ? `- Vytvoř variantu se stejnou obtížností jako mají ostatní studenti, ale změň konkrétní číselné hodnoty nebo vstupní data, aby zadání bylo unikátní.\n- Zachovej stejnou strukturu kroků, aby bylo možné úkol vyhodnocovat podle stejných kritérií.`
       : `- Toto zadání bude sdílené všemi studenty skupiny. Nevytvářej žádné individuální varianty ani volby.`
     
+    // Analyze goals to extract task structure (e.g., "3 různé kvadratické rovnice")
+    const extractTaskStructure = (goals: GoalInput[]): { hasStructuredTasks: boolean; description: string } => {
+      if (goals.length === 0) return { hasStructuredTasks: false, description: '' }
+      
+      const taskStructures: string[] = []
+      let hasStructured = false
+      
+      goals.forEach((goal) => {
+        const title = goal.title.toLowerCase()
+        // Look for patterns like "3 různé", "5 úkolů", "několik", "samostatně X", etc.
+        const patterns = [
+          /(\d+)\s+(různé|různých|úkolů|úloh|příkladů|příkladů|rovnic|rovnicí|úlohy|příklady|rovnice)/i,
+          /samostatně\s+(\d+)\s+(různé|různých|úkolů|úloh|příkladů|příkladů|rovnic|rovnicí|úlohy|příklady|rovnice)/i,
+          /(\d+)\s+(úlohy|příklady|rovnice|úkoly)/i,
+          /vyřeší\s+(\d+)\s+(různé|různých|úkolů|úloh|příkladů|příkladů|rovnic|rovnicí|úlohy|příklady|rovnice)/i
+        ]
+        
+        let matched = false
+        for (const pattern of patterns) {
+          const match = title.match(pattern)
+          if (match) {
+            const count = parseInt(match[1])
+            // Extract the task type (everything after the number and quantity word)
+            const taskType = goal.title.replace(new RegExp(`^.*?${match[0]}\\s+`, 'i'), '').trim()
+            if (taskType) {
+              taskStructures.push(`${count}x ${taskType}`)
+              hasStructured = true
+              matched = true
+              break
+            }
+          }
+        }
+        
+        if (!matched) {
+          taskStructures.push(goal.title)
+        }
+      })
+      
+      return {
+        hasStructuredTasks: hasStructured,
+        description: taskStructures.join('; ')
+      }
+    }
+    
+    const taskStructure = extractTaskStructure(goalsList)
+    const structureInstruction = taskStructure.hasStructuredTasks
+      ? `\n\nDŮLEŽITÉ PRO GENEROVÁNÍ ÚLOH:
+- Analyzuj strukturu cílů: ${taskStructure.description}
+- Pokud cíl obsahuje číslo a typ úlohy (např. "3 různé kvadratické rovnice", "vyřeší samostatně 3 různé kvadratické rovnice"), VYGENERUJ konkrétní úlohy tohoto typu a počtu
+- Například: pokud cíl je "vyřeší samostatně 3 různé kvadratické rovnice typu ax^2 + bx + c", vytvoř 3 konkrétní kvadratické rovnice s různými koeficienty a zapiš je přímo do zadání
+- Pokud cíl je "vyřeší 5 příkladů na derivace", vytvoř 5 konkrétních příkladů na derivace a zapiš je do zadání
+- Vždy generuj konkrétní úlohy přímo do zadání, ne jen popis typu úlohy
+- Úlohy by měly být různé, ale stejné obtížnosti
+- Pokud je v cíli uveden konkrétní typ (např. "typu ax^2 + bx + c"), respektuj tento typ při generování`
+      : ''
+
     const systemPrompt = `Jste AI asistent pomáhající studentům s jejich úkoly.
 
 KONTEXT PRO VÁS (vodítko pro vytvoření zadání):
 ${groupDescription}
 
 ${goalsText}
+${structureInstruction}
 
 Student se jmenuje: ${studentName || 'studente'}
 Skupina: ${groupName || 'skupina'}
@@ -146,20 +203,57 @@ Skupina: ${groupName || 'skupina'}
 Na základě výše uvedeného kontextu vytvořte přátelské a motivační zadání úkolu pro studenta.
 Zadání by mělo:
 1. Jasně popisovat, co má student dělat
-2. Vysvětlit, jak splní cíle nebo na čem má pracovat
+2. ${taskStructure.hasStructuredTasks ? 'Obsahovat konkrétní úlohy vygenerované na základě struktury cílů (např. konkrétní rovnice, příklady, úkoly) - NEPOUŽÍVEJTE obecné popisy, ale skutečné konkrétní úlohy' : 'Vysvětlit, jak splní cíle nebo na čem má pracovat'}
 3. Být srozumitelné a konkrétní
 4. Být přátelské a povzbuzující
 5. ${goalsList.length > 0 ? 'Odkazovat na cíle, které má splnit' : 'Poskytnout jasné instrukce na základě popisu skupiny'}
+
+${taskStructure.hasStructuredTasks ? `PŘÍKLADY SPRÁVNÉHO GENEROVÁNÍ:
+
+Příklad 1: Cíl je "vyřeší samostatně 3 různé kvadratické rovnice typu ax^2 + bx + c"
+SPRÁVNÉ zadání:
+"Tvůj úkol je vyřešit následující 3 kvadratické rovnice:
+1. x^2 + 5x + 6 = 0
+2. 2x^2 - 7x + 3 = 0
+3. x^2 - 4x - 5 = 0
+Pro každou rovnici najdi hodnoty x, které ji řeší."
+
+ŠPATNÉ zadání (NEPOUŽÍVEJ):
+"Tvůj úkol je vyřešit 3 kvadratické rovnice typu ax^2 + bx + c." (chybí konkrétní rovnice!)
+
+Příklad 2: Cíl je "vyřeší 5 příkladů na derivace"
+SPRÁVNÉ zadání:
+"Tvůj úkol je vypočítat derivace následujících funkcí:
+1. f(x) = x^3 + 2x^2 - 5x + 1
+2. f(x) = sin(x) + cos(x)
+3. f(x) = e^x * ln(x)
+4. f(x) = (x^2 + 1) / (x - 1)
+5. f(x) = sqrt(x^2 + 1)
+Pro každou funkci najdi f'(x)."
+
+Příklad 3: Cíl je "vyřeší 4 úlohy na lineární rovnice"
+SPRÁVNÉ zadání:
+"Tvůj úkol je vyřešit následující 4 lineární rovnice:
+1. 3x + 5 = 14
+2. 2x - 7 = 3x + 1
+3. 4(x - 2) = 2x + 8
+4. (x + 3)/2 = 5
+Pro každou rovnici najdi hodnotu x."
+
+DŮLEŽITÉ: VŽDY generuj konkrétní úlohy přímo do zadání, ne jen popis typu úlohy! Pokud cíl říká "3 rovnice", musíš vytvořit 3 konkrétní rovnice a zapsat je do zadání.` : ''}
 
 DŮLEŽITÉ: 
 - Zadání musí být pro studenta (ne pro vás)
 - Použijte druhou osobu (ty/dělej/zkus)
 - Buďte konkrétní a jasní
+- Buďte STRUČNÍ - zadání by mělo být krátké a přímočaré
+- NEPŘIDÁVEJTE otázky na konci zadání (např. "Jak chceš začít?", "Máš nějaké otázky?"). Zadání končí popisem úkolu.
 - Nepoužívejte fráze jako "vodítko pro vás" - to je jen pro váš kontext
 - Nepřidávejte vlastní pozdrav ani úvod – aplikace už studenta přivítala. Začněte rovnou zadáním úkolu nebo popisem, co má student udělat.
 - ${modeInstructions}
+${taskStructure.hasStructuredTasks ? '- Pokud cíl obsahuje číslo a typ úlohy (např. "3 různé kvadratické rovnice"), VYGENERUJ konkrétní úlohy tohoto typu a počtu přímo do zadání. NEPOUŽÍVEJ obecné popisy - vytvoř skutečné konkrétní úlohy a zapiš je do zadání.' : ''}
 
-Odpovězte pouze textem zadání úkolu pro studenta (bez dalších komentářů, bez markdown formátování).`
+Odpovězte pouze textem zadání úkolu pro studenta (bez dalších komentářů, bez markdown formátování, bez otázek na konci).`
 
     const completion = await client.chat.completions.create({
       model: deployment,
@@ -174,7 +268,8 @@ Odpovězte pouze textem zadání úkolu pro studenta (bez dalších komentářů
         }
       ],
       // Temperature removed - Azure OpenAI model uses default value
-      max_tokens: 500
+      // Increased tokens to allow for concrete task generation (e.g., multiple equations, examples)
+      max_tokens: 800
     })
     
     let assignment = extractMessageContent(completion.choices[0]?.message?.content).trim()
