@@ -54,6 +54,27 @@ export default defineEventHandler(async (event) => {
       })
     }
     
+    // Check if group has any students (is active)
+    const { count: studentCount, error: countError } = await supabase
+      .from('group_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('group_id', groupId)
+    
+    if (countError) {
+      console.error('Error checking group members:', countError)
+      throw createError({
+        statusCode: 500,
+        message: 'Nepodařilo se zkontrolovat stav skupiny'
+      })
+    }
+    
+    if (studentCount && studentCount > 0) {
+      throw createError({
+        statusCode: 403,
+        message: 'Skupinu nelze upravit, protože už má připojené studenty. Skupina je aktivní a nelze ji měnit.'
+      })
+    }
+    
     // Update the group
     const assignmentMode = body.assignmentMode === 'variant' ? 'variant' : 'uniform'
 
