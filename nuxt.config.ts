@@ -53,7 +53,7 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: 'StudentTracker - Sledování pokroku studentů',
+      title: 'EduGuide - Sledování pokroku studentů',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },

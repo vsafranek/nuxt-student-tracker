@@ -11,7 +11,7 @@
                 </svg>
               </div>
               <div>
-                <h1 class="text-xl font-bold text-gray-900">StudentTracker</h1>
+                <h1 class="text-xl font-bold text-gray-900">EduGuide</h1>
                 <p class="text-sm text-gray-500">Dashboard učitele</p>
               </div>
             </div>

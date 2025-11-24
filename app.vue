@@ -13,7 +13,7 @@ const supabase = useSupabaseClient()
 // Head konfigurace
 useHead({
   titleTemplate: (titleChunk) => {
-    return titleChunk ? `${titleChunk} - StudentTracker` : 'StudentTracker - Sledování pokroku studentů'
+    return titleChunk ? `${titleChunk} - EduGuide` : 'EduGuide - Sledování pokroku studentů'
   },
   htmlAttrs: {
     lang: 'cs'
