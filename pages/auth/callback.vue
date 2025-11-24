@@ -51,7 +51,7 @@ onMounted(async () => {
     if (error) throw error
     
     if (user) {
-      // Zkontrolovat nebo vytvořit uživatelský záznam
+      // Check or create user record
       const { data: existingUser, error: userError } = await supabase
         .from('users')
         .select('*')
@@ -63,12 +63,12 @@ onMounted(async () => {
       }
       
       if (!existingUser) {
-        // Vytvořit nový záznam
+        // Create new record
         const { error: insertError } = await supabase.from('users').insert({
           id: user.id,
           email: user.email,
           name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Uživatel',
-          role: 'teacher', // Výchozí role
+          role: 'teacher', // Default role
         })
         
         if (insertError) {
@@ -82,14 +82,15 @@ onMounted(async () => {
         type: 'success'
       })
       
-      // Přesměrovat podle role
+      // Redirect based on role
       const role = existingUser?.role || 'teacher'
       await new Promise(resolve => setTimeout(resolve, 500)) // Small delay for toast
       
       if (role === 'teacher') {
         await router.push('/teacher/dashboard')
       } else {
-        await router.push('/student/groups')
+        // Students are redirected to the home page where they can join a group
+        await router.push('/')
       }
     } else {
       throw new Error('Nepodařilo se získat uživatele')

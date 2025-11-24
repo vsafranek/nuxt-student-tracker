@@ -84,7 +84,7 @@ export default defineEventHandler(async (event) => {
       assignment_mode: assignmentMode
     }
 
-    // Pokud se přepíná na variantní režim, smažeme sdílené zadání
+    // If switching to variant mode, delete shared assignment
     if (assignmentMode === 'variant') {
       updatePayload.shared_assignment = null
     }

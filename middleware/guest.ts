@@ -3,7 +3,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     // More secure - authenticates with Supabase Auth server
     const { data: { user } } = await supabase.auth.getUser()
     
-    // Pokud je uživatel přihlášen, přesměruj
+    // If user is logged in, redirect
     if (user) {
       const { data: userData } = await supabase
         .from('users')

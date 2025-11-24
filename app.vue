@@ -7,10 +7,10 @@
 </template>
 
 <script setup lang="ts">
-// Inicializace autentizace při startu aplikace
+// Initialize authentication on app startup
 const supabase = useSupabaseClient()
 
-// Head konfigurace
+// Head configuration
 useHead({
   titleTemplate: (titleChunk) => {
     return titleChunk ? `${titleChunk} - EduGuide` : 'EduGuide - Sledování pokroku studentů'
@@ -29,20 +29,20 @@ useHead({
   ]
 })
 
-// Sledování auth stavu a automatické obnovování session
+// Track auth state and automatically refresh session
 onMounted(() => {
-  // Zkontrolovat a obnovit user při startu (more secure - authenticates with Supabase Auth server)
+  // Check and refresh user on startup (more secure - authenticates with Supabase Auth server)
   supabase.auth.getUser().then(({ data: { user } }) => {
     if (user) {
       console.log('User found on app mount:', user.email)
     }
   })
   
-  // Poslouchat změny auth stavu
+  // Listen for auth state changes
   supabase.auth.onAuthStateChange((event, session) => {
     console.log('Auth state changed:', event, session?.user?.email)
     
-    // Automaticky obnovit token pokud je potřeba
+    // Automatically refresh token if needed
     if (session && event === 'TOKEN_REFRESHED') {
       console.log('Token refreshed successfully')
     }

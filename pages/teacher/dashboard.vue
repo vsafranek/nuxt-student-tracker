@@ -653,10 +653,10 @@
     })
     
     if (response.success) {
-      // Přidat novou skupinu do seznamu
+      // Add new group to the list
       groups.value.unshift(response.group)
       
-      // Reset formuláře a zavření modalu
+      // Reset form and close modal
       newGroup.value = { name: '', description: '', assignmentMode: 'uniform' }
       showCreateGroupModal.value = false
     }

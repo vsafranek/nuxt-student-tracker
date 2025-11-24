@@ -6,14 +6,14 @@ export const useAuth = () => {
   const user = useState<User | null>('user', () => null)
   const loading = useState('auth-loading', () => true)
 
-  // Inicializace - načtení aktuálního uživatele
+  // Initialize - load current user
   const initialize = async () => {
     loading.value = true
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser()
       user.value = currentUser
       
-      // Poslouchání změn autentizace
+      // Listen for authentication changes
       supabase.auth.onAuthStateChange((_event, session) => {
         user.value = session?.user ?? null
       })
@@ -24,13 +24,13 @@ export const useAuth = () => {
     }
   }
 
-  // Přihlášení přes Google
+  // Sign in with Google
   const signInWithGoogle = async () => {
-    // Zkontrolovat, zda už není uživatel přihlášen (more secure - authenticates with Supabase Auth server)
+    // Check if user is already logged in (more secure - authenticates with Supabase Auth server)
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user) {
-      // Uživatel je už přihlášen, neprovádět OAuth flow
+      // User is already logged in, don't perform OAuth flow
       return
     }
     
@@ -40,7 +40,7 @@ export const useAuth = () => {
         redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: {
           access_type: 'offline',
-          // Odstraněno prompt: 'consent' - umožní automatické přihlášení pokud už je uživatel přihlášen v Google
+          // Removed prompt: 'consent' - allows automatic sign-in if user is already signed in to Google
         }
       }
     })
@@ -51,7 +51,7 @@ export const useAuth = () => {
     }
   }
 
-  // Odhlášení
+  // Sign out
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) {
@@ -62,11 +62,11 @@ export const useAuth = () => {
     await navigateTo('/login')
   }
 
-  // Kontrola role
+  // Check role
   const getUserRole = async () => {
     if (!user.value) return null
     
-    // Získání role z databáze
+    // Get role from database
     const { data, error } = await supabase
       .from('users')
       .select('role')

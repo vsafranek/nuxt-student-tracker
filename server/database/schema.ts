@@ -48,7 +48,7 @@ export const messages = pgTable('messages', {
   content: text('content').notNull(),
   isRelevant: boolean('is_relevant').default(false),
   role: text('role').notNull().default('assistant'),
-  metadata: jsonb('metadata'), // pro uložení AI analýzy
+  metadata: jsonb('metadata'), // for storing AI analysis
   createdAt: timestamp('created_at').defaultNow()
 })
 

@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
     console.log('Teacher ID type:', typeof teacherId)
     console.log('Teacher ID value:', JSON.stringify(teacherId))
 
-    // Načtení skupin učitele (use snake_case for column names)
+    // Load teacher's groups (use snake_case for column names)
     const { data: groups, error: groupsError } = await supabase
       .from('groups')
       .select('*')
@@ -53,16 +53,16 @@ export default defineEventHandler(async (event) => {
     
     console.log('All groups in DB:', allGroups)
 
-    // Pro každou skupinu načíst statistiky (use snake_case for column names)
+    // For each group, load statistics (use snake_case for column names)
     const groupsWithStats = await Promise.all(
       (groups || []).map(async (group: any) => {
-        // Počet studentů ve skupině (z group_members)
+        // Number of students in the group (from group_members)
         const { count: studentCount } = await supabase
           .from('group_members')
           .select('id', { count: 'exact', head: true })
           .eq('group_id', group.id)
         
-        // Načíst goals pro výpočet procentuálního pokroku
+        // Load goals for calculating percentage progress
         const { data: goals } = await supabase
           .from('goals')
           .select('id, type, target_count')
@@ -78,13 +78,13 @@ export default defineEventHandler(async (event) => {
           })
         }
         
-        // Načíst progress data
+        // Load progress data
         const { data: progressRows } = await supabase
           .from('student_progress')
           .select('group_member_id, goal_id, progress, completed')
           .eq('group_id', group.id)
         
-        // Vypočítat procentuální pokrok pro každého studenta
+        // Calculate percentage progress for each student
         const progressMap = new Map<string, number[]>()
         ;(progressRows || []).forEach((row: any) => {
           if (!row.group_member_id || !row.goal_id) return
@@ -109,7 +109,7 @@ export default defineEventHandler(async (event) => {
           progressMap.get(row.group_member_id)!.push(percentage)
         })
         
-        // Vypočítat průměrný pokrok skupiny
+        // Calculate average group progress
         let averageProgress = 0
         if (progressMap.size > 0) {
           const studentProgresses: number[] = []
@@ -127,14 +127,14 @@ export default defineEventHandler(async (event) => {
           }
         }
         
-        // Počet studentů potřebujících pomoc
+        // Number of students needing help
         const { count: helpNeeded } = await supabase
           .from('group_members')
           .select('id', { count: 'exact', head: true })
           .eq('group_id', group.id)
           .eq('needs_help', true)
         
-        // Počet online studentů (last_active_at < 60 sekund)
+        // Number of online students (last_active_at < 60 seconds)
         const ONLINE_THRESHOLD_MS = 60 * 1000
         const { data: allMembers } = await supabase
           .from('group_members')
@@ -209,10 +209,10 @@ export default defineEventHandler(async (event) => {
           console.log(`[API] Group ${group.id} (${group.name}): No members found`)
         }
         
-        // Počet studentů, kteří dokončili všechny cíle
+        // Number of students who completed all goals
         let completedCount = 0
         if (goals && goals.length > 0) {
-          // Získat všechny member IDs ze skupiny
+          // Get all member IDs from the group
           const { data: allMembers } = await supabase
             .from('group_members')
             .select('id')
@@ -221,12 +221,12 @@ export default defineEventHandler(async (event) => {
           if (allMembers) {
             for (const member of allMembers as any[]) {
               const memberId = member.id
-              // Zkontrolovat, zda má student progress pro všechny cíle
+              // Check if student has progress for all goals
               const memberProgressRows = (progressRows || []).filter((row: any) => row.group_member_id === memberId)
               
-              // Musí mít progress pro všechny cíle
+              // Must have progress for all goals
               if (memberProgressRows.length === goals.length) {
-                // Všechny cíle musí být dokončené
+                // All goals must be completed
                 const allCompleted = memberProgressRows.every((row: any) => row.completed === true)
                 if (allCompleted) {
                   completedCount++

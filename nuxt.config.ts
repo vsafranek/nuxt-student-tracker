@@ -21,7 +21,7 @@ export default defineNuxtConfig({
       callback: '/auth/callback',
       exclude: ['/join', '/join/*'],
     },
-    // Zajistit, že session je trvalá
+    // Ensure session is persistent
     clientOptions: {
       auth: {
         persistSession: true,

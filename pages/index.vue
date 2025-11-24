@@ -5,7 +5,7 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
           <!-- Logo -->
-          <div class="flex items-center gap-3">
+          <NuxtLink to="/" class="flex items-center gap-3">
             <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
               <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -14,20 +14,20 @@
             <span class="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               EduGuide
             </span>
-          </div>
+          </NuxtLink>
 
           <!-- Navigation Links -->
           <div class="hidden md:flex items-center gap-8">
-            <a href="#features" class="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+            <a href="#features" class="text-gray-700 hover:text-blue-600 transition-colors font-medium scroll-smooth">
               Funkce
             </a>
-            <a href="#how-it-works" class="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+            <a href="#how-it-works" class="text-gray-700 hover:text-blue-600 transition-colors font-medium scroll-smooth">
               Jak to funguje
             </a>
-            <a href="#for-teachers" class="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+            <a href="#for-teachers" class="text-gray-700 hover:text-blue-600 transition-colors font-medium scroll-smooth">
               Pro učitele
             </a>
-            <a href="#for-students" class="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+            <a href="#for-students" class="text-gray-700 hover:text-blue-600 transition-colors font-medium scroll-smooth">
               Pro studenty
             </a>
           </div>
@@ -95,7 +95,7 @@
     </section>
 
     <!-- Features Section -->
-    <section id="features" class="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+    <section id="features" class="py-20 px-4 sm:px-6 lg:px-8 bg-white scroll-mt-20">
       <div class="max-w-7xl mx-auto">
         <div class="text-center mb-16">
           <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -129,7 +129,7 @@
             </div>
             <h3 class="text-2xl font-bold text-gray-900 mb-3">AI asistent</h3>
             <p class="text-gray-700">
-              Inteligentní chatbot využívající GPT-4 pomáhá studentům s úkoly a poskytuje okamžitou zpětnou vazbu.
+              Inteligentní chatbot využívající GPT-5 pomáhá studentům s úkoly a poskytuje okamžitou zpětnou vazbu.
             </p>
           </div>
 
@@ -189,7 +189,7 @@
     </section>
 
     <!-- How It Works -->
-    <section id="how-it-works" class="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-white">
+    <section id="how-it-works" class="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-white scroll-mt-20">
       <div class="max-w-7xl mx-auto">
         <div class="text-center mb-16">
           <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -238,7 +238,7 @@
     </section>
 
     <!-- For Teachers Section -->
-    <section id="for-teachers" class="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+    <section id="for-teachers" class="py-20 px-4 sm:px-6 lg:px-8 bg-white scroll-mt-20">
       <div class="max-w-7xl mx-auto">
         <div class="grid lg:grid-cols-2 gap-12 items-center">
           <div>
@@ -271,7 +271,7 @@
                 <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                 </svg>
-                <span class="text-gray-700"><strong>Historie konverzací</strong> - Přístup ke všem zpráv��m studentů s AI</span>
+                <span class="text-gray-700"><strong>Historie konverzací</strong> - Přístup ke všem zprávám studentů s AI</span>
               </li>
             </ul>
             <button
@@ -291,7 +291,7 @@
     </section>
 
     <!-- For Students Section -->
-    <section id="for-students" class="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-white">
+    <section id="for-students" class="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-white scroll-mt-20">
       <div class="max-w-7xl mx-auto">
         <div class="grid lg:grid-cols-2 gap-12 items-center">
           <div class="order-2 lg:order-1 bg-gradient-to-br from-purple-100 to-pink-100 rounded-3xl p-8 aspect-square flex items-center justify-center">
@@ -324,12 +324,6 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                 </svg>
                 <span class="text-gray-700"><strong>Jednoduchý vstup</strong> - Jen naskenujte QR kód a můžete začít</span>
-              </li>
-              <li class="flex items-start gap-3">
-                <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                </svg>
-                <span class="text-gray-700"><strong>Podpora hlasem</strong> - Můžete diktovat své odpovědi místo psaní</span>
               </li>
             </ul>
             <NuxtLink
@@ -374,14 +368,14 @@
       <div class="max-w-7xl mx-auto">
         <div class="grid md:grid-cols-3 gap-8">
           <div>
-            <div class="flex items-center gap-3 mb-4">
+            <NuxtLink to="/" class="flex items-center gap-3 mb-4">
               <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
               </div>
               <span class="text-xl font-bold">EduGuide</span>
-            </div>
+            </NuxtLink>
             <p class="text-gray-400">
               Moderní platforma pro sledování pokroku studentů s AI asistentem
             </p>
@@ -389,17 +383,17 @@
           <div>
             <h3 class="font-bold mb-4">Odkazy</h3>
             <ul class="space-y-2 text-gray-400">
-              <li><a href="#features" class="hover:text-white transition-colors">Funkce</a></li>
-              <li><a href="#how-it-works" class="hover:text-white transition-colors">Jak to funguje</a></li>
-              <li><a href="#for-teachers" class="hover:text-white transition-colors">Pro učitele</a></li>
-              <li><a href="#for-students" class="hover:text-white transition-colors">Pro studenty</a></li>
+              <li><a href="#features" class="hover:text-white transition-colors scroll-smooth">Funkce</a></li>
+              <li><a href="#how-it-works" class="hover:text-white transition-colors scroll-smooth">Jak to funguje</a></li>
+              <li><a href="#for-teachers" class="hover:text-white transition-colors scroll-smooth">Pro učitele</a></li>
+              <li><a href="#for-students" class="hover:text-white transition-colors scroll-smooth">Pro studenty</a></li>
             </ul>
           </div>
           <div>
             <h3 class="font-bold mb-4">Kontakt</h3>
             <ul class="space-y-2 text-gray-400">
-              <li>Email: info@eduguide.cz</li>
-              <li>Tel: +420 123 456 789</li>
+              <li>Email: <a href="mailto:info@eduguide.cz" class="hover:text-white transition-colors">info@eduguide.cz</a></li>
+              <li>Tel: <a href="tel:+420123456789" class="hover:text-white transition-colors">+420 123 456 789</a></li>
             </ul>
           </div>
         </div>
@@ -420,7 +414,7 @@
           <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative">
             <button
               @click="showLoginModal = false"
-              class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+              class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -435,7 +429,7 @@
             <button
               @click="handleGoogleSignIn"
               :disabled="isLoading"
-              class="w-full flex items-center justify-center gap-4 px-6 py-4 bg-white border-2 border-gray-200 rounded-2xl hover:border-blue-400 hover:bg-blue-50 transition-all shadow-lg disabled:opacity-50"
+              class="w-full flex items-center justify-center gap-4 px-6 py-4 bg-white border-2 border-gray-200 rounded-2xl hover:border-blue-400 hover:bg-blue-50 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg v-if="!isLoading" class="w-7 h-7" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -470,13 +464,13 @@ const showLoginModal = ref(false)
 const isLoading = ref(false)
 const error = ref('')
 
-// Zkontrolovat user při načtení stránky (more secure - authenticates with Supabase Auth server)
+// Check user on page load
 onMounted(async () => {
   try {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user) {
-      // Uživatel je přihlášen, přesměrovat na dashboard
+      // User is logged in, redirect to dashboard
       const { data: userData } = await supabase
         .from('users')
         .select('role')
@@ -484,7 +478,7 @@ onMounted(async () => {
         .single()
       
       const role = userData?.role || 'teacher'
-      await router.push(role === 'teacher' ? '/teacher/dashboard' : '/student/groups')
+      await router.push(role === 'teacher' ? '/teacher/dashboard' : '/')
     }
   } catch (error) {
     console.error('Error checking user:', error)
@@ -496,31 +490,30 @@ const handleGoogleSignIn = async () => {
   isLoading.value = true
   
   try {
-    // Zkontrolovat, zda už není uživatel přihlášen (more secure - authenticates with Supabase Auth server)
+    // Check if user is already logged in
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user) {
-      // Uživatel je přihlášen, přesměrovat na dashboard
+      // User is logged in, redirect to dashboard
       isLoading.value = false
       const { data: userData } = await supabase
         .from('users')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single()
       
       const role = userData?.role || 'teacher'
-      await navigateTo(role === 'teacher' ? '/teacher/dashboard' : '/student/groups')
+      await navigateTo(role === 'teacher' ? '/teacher/dashboard' : '/')
       return
     }
     
-    // Přihlášení přes Google (bez prompt: 'consent' pro automatické přihlášení)
+    // Sign in with Google
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: {
           access_type: 'offline',
-          // Odstraněno prompt: 'consent' - umožní automatické přihlášení pokud už je uživatel přihlášen v Google
         }
       }
     })
@@ -571,12 +564,14 @@ const handleGoogleSignIn = async () => {
 html {
   scroll-behavior: smooth;
 }
-</style>
 
-Toto je kompletní úvodní stránka s:
-- **Přihlášením vpravo nahoře** - pouze pro učitele
-- **Informacemi o aplikaci** - funkce, jak to funguje, pro koho je to
-- **QR kód je skrytý** - zobrazuje se až v učitelském dashboardu
-- **CTA tlačítka** pro vstup do skupiny i přihlášení
-- **Responzivní design** - funguje na všech zařízeních
-- **Moderní UI** - s animacemi a gradientem
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

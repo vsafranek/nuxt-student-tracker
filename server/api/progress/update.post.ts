@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Najít člena skupiny podle zařízení
+    // Find group member by device
     const { data: groupMember, error: memberError } = await supabase
       .from('group_members')
       .select('id')

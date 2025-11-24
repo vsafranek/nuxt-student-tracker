@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Validace vstupních dat (teacherId comes from auth, not body)
+    // Validate input data (teacherId comes from auth, not body)
     if (!body.name || !body.description) {
       throw createError({
         statusCode: 400,
@@ -27,14 +27,14 @@ export default defineEventHandler(async (event) => {
     // Use authenticated user's ID as teacherId
     const teacherId = user.id
 
-    // Generování unikátního ID pro skupinu
+    // Generate unique ID for the group
     const groupId = crypto.randomUUID()
     
-    // Vytvoření URL pro vstup do skupiny
+    // Create URL for joining the group
     const origin = getRequestURL(event).origin
     const joinUrl = `${origin}/join/${groupId}`
     
-    // Generování QR kódu jako SVG string
+    // Generate QR code as SVG string
     const qrCodeSvg = await QRCode.toString(joinUrl, {
       type: 'svg',
       width: 300,
@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
       }
     })
     
-    // Uložení skupiny do databáze (use snake_case for column names)
+    // Save group to database (use snake_case for column names)
     const assignmentMode = body.assignmentMode === 'variant' ? 'variant' : 'uniform'
 
     const { data: group, error: insertError } = await supabase
