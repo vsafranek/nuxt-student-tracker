@@ -27,6 +27,44 @@ export default defineEventHandler(async (event) => {
     // Use authenticated user's ID as teacherId
     const teacherId = user.id
 
+    // Ensure user exists in users table (create if doesn't exist)
+    // This prevents foreign key constraint violations for new users
+    const { data: existingUser, error: userCheckError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', teacherId)
+      .maybeSingle()
+    
+    if (userCheckError && userCheckError.code !== 'PGRST116') {
+      console.error('Error checking user existence:', userCheckError)
+      throw createError({
+        statusCode: 500,
+        message: 'Chyba při kontrole uživatele: ' + userCheckError.message
+      })
+    }
+    
+    if (!existingUser) {
+      // Create user record if it doesn't exist
+      const { error: createUserError } = await supabase
+        .from('users')
+        .insert({
+          id: teacherId,
+          email: user.email || '',
+          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Uživatel',
+          role: 'teacher'
+        } as any)
+      
+      if (createUserError) {
+        console.error('Error creating user record:', createUserError)
+        throw createError({
+          statusCode: 500,
+          message: 'Nepodařilo se vytvořit záznam uživatele: ' + createUserError.message
+        })
+      }
+      
+      console.log('Created user record for teacher:', teacherId)
+    }
+
     // Generate unique ID for the group
     const groupId = crypto.randomUUID()
     
