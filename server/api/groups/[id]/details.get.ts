@@ -29,7 +29,28 @@ export default defineEventHandler(async (event) => {
       .eq('id', groupId)
       .single()
     
-    if (groupError || !group) {
+    if (groupError) {
+      console.error('Error fetching group from database:', groupError)
+      console.error('Group ID:', groupId)
+      console.error('User ID:', user.id)
+      
+      // Check if it's a "not found" error or RLS policy error
+      if (groupError.code === 'PGRST116' || groupError.message?.includes('No rows')) {
+        throw createError({
+          statusCode: 404,
+          message: 'Skupina nenalezena'
+        })
+      }
+      
+      // For other errors, log and throw
+      throw createError({
+        statusCode: 500,
+        message: 'Chyba při načítání skupiny: ' + groupError.message
+      })
+    }
+    
+    if (!group) {
+      console.error('Group not found - Group ID:', groupId, 'User ID:', user.id)
       throw createError({
         statusCode: 404,
         message: 'Skupina nenalezena'
@@ -40,6 +61,7 @@ export default defineEventHandler(async (event) => {
     
     // Verify the group belongs to the authenticated user
     if (groupData.teacher_id !== user.id) {
+      console.error('Group access denied - Group teacher_id:', groupData.teacher_id, 'User ID:', user.id)
       throw createError({
         statusCode: 403,
         message: 'Nemáte oprávnění zobrazit tuto skupinu'

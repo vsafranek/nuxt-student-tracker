@@ -26,6 +26,7 @@
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-mono"
               required
               autofocus
+              autocomplete="off"
               @input="groupCode = groupCode.trim()"
             />
             <p class="text-xs text-gray-500 mt-1">
@@ -84,6 +85,14 @@ const handleJoin = async () => {
       }
     }
     
+    // If it's a full URL with http/https, extract the ID
+    if (groupId.includes('http')) {
+      const match = groupId.match(/\/join\/([a-f0-9-]+)/i)
+      if (match) {
+        groupId = match[1]
+      }
+    }
+    
     // Validate UUID format (basic check)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     if (!uuidRegex.test(groupId)) {
@@ -100,16 +109,6 @@ const handleJoin = async () => {
     isLoading.value = false
   }
 }
-
-// Handle QR code scanning or URL parameters
-onMounted(() => {
-  // Check if there's a group ID in the URL query
-  const route = useRoute()
-  if (route.query.id) {
-    groupCode.value = route.query.id as string
-    handleJoin()
-  }
-})
 </script>
 
 <style scoped>

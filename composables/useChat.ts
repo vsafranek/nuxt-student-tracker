@@ -306,8 +306,11 @@ interface ChatMessage {
         }
         
         return false
-      } catch (err) {
-        console.error('Error checking needs help status:', err)
+      } catch (err: any) {
+        // Only log non-404/403 errors (404/403 are expected if group doesn't exist or access denied)
+        if (err.statusCode !== 404 && err.statusCode !== 403) {
+          console.error('Error checking needs help status:', err)
+        }
         return false
       }
     }

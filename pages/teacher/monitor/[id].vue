@@ -376,7 +376,10 @@ const loadGroupDetails = async () => {
       }
     }
   } catch (error: any) {
-    console.error('Error loading group details:', error)
+    // Only log non-404 errors (404 is expected if group doesn't exist)
+    if (error.statusCode !== 404) {
+      console.error('Error loading group details:', error)
+    }
     if (error.statusCode === 404 || error.statusCode === 403) {
       group.value = null
     }

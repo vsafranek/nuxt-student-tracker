@@ -57,6 +57,7 @@
               required
               autofocus
               maxlength="50"
+              autocomplete="off"
             />
             <p class="text-xs text-gray-500 mt-1">
               Tato přezdívka bude viditelná pro učitele ve skupině
